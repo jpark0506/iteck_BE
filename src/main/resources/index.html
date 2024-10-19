@@ -11,6 +11,10 @@
 <input type="file" id="fileInput" />
 <button id="uploadButton">Upload</button>
 
+<!-- 데이터를 표시할 영역 -->
+<h2>Uploaded Data:</h2>
+<div id="dataDisplay"></div>
+
 <script>
     document.getElementById('uploadButton').addEventListener('click', function() {
         const input = document.getElementById('fileInput');
@@ -24,11 +28,21 @@
         formData.append("file", file);
 
         fetch('http://localhost:8080/api/upload', {
-        method: 'POST',
-        body: formData
+            method: 'POST',
+            body: formData
         })
-        .then(response => response.json())
-        .then(data => console.log('Success:', data))
+        .then(response => response.json())  // JSON으로 변환
+        .then(data => {
+            // 데이터를 화면에 표시
+            const dataDisplay = document.getElementById('dataDisplay');
+            dataDisplay.innerHTML = '';  // 기존 내용을 초기화
+
+            data.forEach((row, index) => {
+                const rowData = document.createElement('p');
+                rowData.textContent = `Row ${index + 1}: ${row.rowData.join(', ')}`;  // rowData를 콤마로 구분하여 출력
+                dataDisplay.appendChild(rowData);
+            });
+        })
         .catch(error => console.error('Error:', error));
     });
 </script>
