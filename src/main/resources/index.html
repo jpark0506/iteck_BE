@@ -3,49 +3,145 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Excel File Upload</title>
+    <title>Dynamic CSV Visualization</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 </head>
 <body>
+<h2>CSV 파일 업로드 및 동적 시각화</h2>
 
-<h1>Upload Excel File</h1>
-<input type="file" id="fileInput" />
-<button id="uploadButton">Upload</button>
+<form id="uploadForm">
+    <input type="file" id="fileInput" name="file" accept=".csv" required />
+    <button type="submit">파일 업로드</button>
+</form>
 
-<!-- 데이터를 표시할 영역 -->
-<h2>Uploaded Data:</h2>
-<div id="dataDisplay"></div>
+<h3>열 선택:</h3>
+<div id="columnSelector"></div> <!-- 열 선택 UI 추가 -->
+
+<!-- 차트를 표시할 div -->
+<div id="chartDiv"></div>
 
 <script>
-    document.getElementById('uploadButton').addEventListener('click', function() {
-        const input = document.getElementById('fileInput');
-        const file = input.files[0];
-        if (!file) {
-            alert("Please select a file first.");
-            return;
+    const fileInput = document.getElementById('fileInput');
+    const uploadForm = document.getElementById('uploadForm');
+    const columnSelector = document.getElementById('columnSelector');
+
+    let parsedData = [];
+    let headers = [];
+
+    uploadForm.onsubmit = async function(event) {
+        event.preventDefault(); // 폼 제출 막기
+
+        const file = fileInput.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const csvContent = e.target.result;
+                console.log("CSV Content:", csvContent);
+                parsedData = parseCSV(csvContent);
+                console.log("Parsed Data:", parsedData);
+
+                // 동적으로 열 선택 UI 생성
+                createColumnSelector(headers);
+
+                // 그래프를 먼저 보여줌
+                const defaultColumns = ['Current(mA)', 'Voltage(V)'];  // 기본 시각화할 열을 지정
+                visualizeData(parsedData, defaultColumns);
+
+                // 데이터 저장을 비동기적으로 수행
+                uploadFile(file);
+            };
+            reader.readAsText(file);
         }
+    };
 
+    // CSV 데이터를 파싱하는 함수
+    function parseCSV(csv) {
+        const lines = csv.split("\n");
+        headers = lines[0].split("\t");  // 탭(\t)으로 열 이름 구분
+        console.log("Headers:", headers);
+
+        const data = [];
+        for (let i = 1; i < lines.length; i++) {
+            const row = lines[i].split("\t");
+            if (row.length === headers.length) {
+                const rowData = {};
+                headers.forEach((header, index) => {
+                    rowData[header.trim()] = row[index].trim();
+                });
+                data.push(rowData);
+            }
+        }
+        return data;
+    }
+
+    // 열 선택 UI를 생성하는 함수
+    function createColumnSelector(headers) {
+        columnSelector.innerHTML = ''; // 기존 선택 요소 지우기
+        headers.forEach(header => {
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.value = header;
+            checkbox.id = header;
+            columnSelector.appendChild(checkbox);
+
+            const label = document.createElement('label');
+            label.htmlFor = header;
+            label.innerText = header;
+            columnSelector.appendChild(label);
+
+            const br = document.createElement('br');
+            columnSelector.appendChild(br);
+        });
+
+        // 선택된 열들을 시각화
+        const visualizeButton = document.createElement('button');
+        visualizeButton.innerText = '시각화';
+        visualizeButton.onclick = function() {
+            const selectedColumns = Array.from(document.querySelectorAll('#columnSelector input:checked')).map(checkbox => checkbox.value);
+            visualizeData(parsedData, selectedColumns);
+        };
+        columnSelector.appendChild(visualizeButton);
+    }
+
+    // 시각화 함수
+    function visualizeData(data, selectedColumns) {
+        const cycleIndex = data.map(row => parseFloat(row['Cycle Index']));  // X축은 Cycle Index로 고정
+
+        const traces = selectedColumns.map(column => {
+            const yValues = data.map(row => parseFloat(row[column]));  // 선택된 열의 데이터 가져오기
+            return {
+                x: cycleIndex,
+                y: yValues,
+                mode: 'lines',
+                name: column
+            };
+        });
+
+        const layout = {
+            title: 'Experiment Data Visualization',
+            xaxis: { title: 'Cycle Index' },
+            yaxis: { title: 'Value' }
+        };
+
+        Plotly.newPlot('chartDiv', traces, layout);
+    }
+
+    // 파일을 서버로 전송하는 함수
+    async function uploadFile(file) {
         const formData = new FormData();
-        formData.append("file", file);
+        formData.append('file', file);
 
-        fetch('http://localhost:8080/api/upload', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())  // JSON으로 변환
-        .then(data => {
-            // 데이터를 화면에 표시
-            const dataDisplay = document.getElementById('dataDisplay');
-            dataDisplay.innerHTML = '';  // 기존 내용을 초기화
-
-            data.forEach((row, index) => {
-                const rowData = document.createElement('p');
-                rowData.textContent = `Row ${index + 1}: ${row.rowData.join(', ')}`;  // rowData를 콤마로 구분하여 출력
-                dataDisplay.appendChild(rowData);
+        try {
+            const response = await fetch('http://localhost:8080/api/upload', {
+                method: 'POST',
+                body: formData
             });
-        })
-        .catch(error => console.error('Error:', error));
-    });
+            const result = await response.json();
+            console.log('서버 응답:', result);
+        } catch (error) {
+            console.error('파일 업로드 중 오류 발생:', error);
+        }
+    }
 </script>
-
 </body>
 </html>
