@@ -45,4 +45,13 @@ public class ExperimentController {
             @RequestParam("file") MultipartFile file) throws IOException {
         return experimentService.createExperimentData(file, metaDto);
     }
+
+    @GetMapping("/meta")
+    public ApiResponse<?> getExperimentMetas(@RequestParam String userName) {
+        return experimentService.getExperimentMetasByUser(userName);
+    }
+    @GetMapping("/chunk")
+    public ApiResponse<?> getExperimentChunks(@RequestParam String expId) {
+        return experimentService.getExperimentChunksByExperimentId(expId);
+    }
 }
