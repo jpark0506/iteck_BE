@@ -3,6 +3,7 @@ package com.iteck.service;
 import com.iteck.domain.ExperimentChunk;
 import com.iteck.domain.ExperimentMeta;
 import com.iteck.dto.ApiResponse;
+import com.iteck.dto.MetaDto;
 import com.iteck.repository.ExperimentChunkRepository;
 import com.iteck.repository.ExperimentMetaRepository;
 import com.iteck.util.ApiStatus;
@@ -13,7 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.time.LocalDate;
+import java.time.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -21,11 +22,10 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-public class FileService {
+public class ExperimentService {
     private final ExperimentMetaRepository experimentMetaRepository;
     private final ExperimentChunkRepository experimentChunkRepository;
-    public ApiResponse<?> createExperimentData(MultipartFile file) throws IOException {
-        String user = "user1"; // 임의의 사용자 설정
+    public ApiResponse<?> createExperimentData(MultipartFile file, MetaDto metaDto) throws IOException {
         String experimentId = UUID.randomUUID().toString(); // 고유 실험 ID 생성
 
         // CSV 파일인지 확인
@@ -36,19 +36,19 @@ public class FileService {
         BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()));
         String line;
         List<String> rowDataList = new ArrayList<>();
-
-        // 파일의 첫 줄은 실험 메타데이터라고 가정
-        String[] metadata = reader.readLine().split(",");
-
-        // 실험 메타데이터 저장
-        ExperimentMeta metadataObj = new ExperimentMeta();
-        metadataObj.setExperimentId(experimentId);
-        metadataObj.setUserName(user);
-        metadataObj.setTitle("제목");
-        metadataObj.setMemo("메모");
-        metadataObj.setExpDate(LocalDate.parse("2020-08-03"));
-        metadataObj.setParameters();
-        experimentMetaRepository.save(metadataObj);
+        System.out.println(metaDto.getUserName());
+        System.out.println(metaDto.getMemo());
+        System.out.println(metaDto.getTitle());
+        ExperimentMeta experimentMeta = ExperimentMeta.builder()
+                .userName(metaDto.getUserName())
+                .title(metaDto.getTitle())
+                .memo(metaDto.getMemo())
+                .factors(metaDto.getFactors())
+                .expDate(ZonedDateTime.now(ZoneId.of("Asia/Seoul")).toInstant()) // 시간을 조회 할 때 아래처럼 실행.
+                //Instant expDateInstant = retrievedDoc.getExpDate();
+                //ZonedDateTime expDateKST = expDateInstant.atZone(ZoneId.of("Asia/Seoul"));
+                .build();
+        experimentMetaRepository.save(experimentMeta);
 
         // 나머지 줄은 rowData
         while ((line = reader.readLine()) != null) {
@@ -72,7 +72,7 @@ public class FileService {
         // MongoDB에 청크 저장
         experimentChunkRepository.saveAll(chunks);
 
-        return ApiResponse.fromResultStatus(ApiStatus.SUC_EXPERIMENT_CREATE, metadataObj);
+        return ApiResponse.fromResultStatus(ApiStatus.SUC_EXPERIMENT_CREATE, experimentMeta);
     }
     public ApiResponse<?> getExperimentMetasByUser(String userName) {
         List<ExperimentMeta> experimentMetas = experimentMetaRepository.findByUserName(userName);
@@ -83,6 +83,5 @@ public class FileService {
         List<ExperimentChunk> experimentChunks = experimentChunkRepository.findByExperimentId(expId);
         return ApiResponse.fromResultStatus(ApiStatus.SUC_EXPERIMENT_READ, experimentChunks);
     }
-
 
 }
