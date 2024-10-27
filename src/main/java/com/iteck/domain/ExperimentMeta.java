@@ -4,23 +4,21 @@ import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import java.time.LocalDate;
-import java.util.List;
+import java.time.Instant;
+import java.util.Map;
 
-@Document(collection = "experiment")
+@Document(collection = "experiment_meta")
 @Getter
-@Setter
+@Builder
 @AllArgsConstructor
 @NoArgsConstructor
 public class ExperimentMeta {
     @Id
     private String id;
     private String experimentId;
-    private int chunkId;
     private String userName;
     private String title;
     private String memo;
-    private LocalDate expDate;
-    private List<String> rowData;
-
+    private Instant expDate; // mongodb는 kst 미지원.
+    private Map<String, String> factors;
 }
