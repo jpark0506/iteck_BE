@@ -1,5 +1,6 @@
 package com.iteck.dto;
 
+import com.iteck.domain.FactorDetail;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -11,5 +12,5 @@ public class MetaDto {
     private String userName;
     private String title;
     private String memo;
-    private Map<String, String> factors;
+    private Map<String, FactorDetail> factors;
 }
