@@ -15,15 +15,33 @@ java {
 
 repositories {
 	mavenCentral()
+	maven {url 'https://repo.spring.io/snapshot'} //스냅샷 저장소 추가
+}
+configurations {
+	all {
+		exclude group: "commons-logging", module: "commons-logging"
+	}
 }
 
 dependencies {
+
+
+
 	implementation 'org.springframework.boot:spring-boot-starter'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
-
-	compileOnly 'org.projectlombok:lombok'
+	implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
+    implementation 'org.springframework.boot:spring-boot-starter-batch:3.3.5'
+	implementation 'org.springframework.boot:spring-boot-starter-websocket:3.3.2'
+	implementation 'org.springframework.batch:spring-batch-core:5.1.2'
+	//엑셀 파일 관련 의존성
 	implementation 'org.apache.poi:poi:5.2.5'
 	implementation 'org.apache.poi:poi-ooxml:5.2.5'
+
+	implementation 'org.springframework.data:spring-data-redis:3.3.5'
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
+	implementation 'org.projectlombok:lombok:1.18.20'
+	annotationProcessor 'org.projectlombok:lombok:1.18.20'
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
