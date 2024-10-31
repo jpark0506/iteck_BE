@@ -20,5 +20,5 @@ public class ExperimentMeta {
     private String title;
     private String memo;
     private Instant expDate; // mongodb는 kst 미지원.
-    private Map<String, String> factors;
+    private Map<String, FactorDetail> factors;
 }
