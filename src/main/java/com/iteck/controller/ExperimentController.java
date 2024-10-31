@@ -43,9 +43,13 @@ public class ExperimentController {
 
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<?> uploadExperiment(
-            @RequestPart("metaDto") MetaDto metaDto,   // JSON 데이터
-            @RequestPart("file") MultipartFile file    // 파일
+        @RequestParam("metaDto") String metaDtoJson,
+        @RequestPart("file") MultipartFile file
     ) throws IOException {
+        
+        ObjectMapper objectMapper = new ObjectMapper();
+        MetaDto metaDto = objectMapper.readValue(metaDtoJson, MetaDto.class);
+
         return experimentService.createExperimentData(file, metaDto);
     }
 
