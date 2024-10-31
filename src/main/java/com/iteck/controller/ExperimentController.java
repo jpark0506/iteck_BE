@@ -8,6 +8,8 @@ import com.iteck.service.ExperimentService;
 
 import lombok.AllArgsConstructor;
 
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -39,19 +41,32 @@ public class ExperimentController {
         });
     }
 
-    @PostMapping("/upload")
-    public ApiResponse<?> uploadExperimentFile(
-            @ModelAttribute MetaDto metaDto,
-            @RequestParam("file") MultipartFile file) throws IOException {
+    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<?> uploadExperiment(
+            @RequestPart("metaDto") MetaDto metaDto,   // JSON 데이터
+            @RequestPart("file") MultipartFile file    // 파일
+    ) throws IOException {
         return experimentService.createExperimentData(file, metaDto);
+    }
+
+
+    // TODO: 인자 저장 구조에서 {"인자명" : "인자함량"} 에서 {"인자종류" : {"인자명" : "인자함량"}} 으로 변경되면서  수정해야 함,
+    @GetMapping("/import/time")
+    public ApiResponse<?> getExperimentComparisonsByTime(
+            @RequestParam("fixed") String fixedFactor){
+        return experimentService.getTimeListByFixedFactor(fixedFactor);
+    }
+
+
+    // TODO: 인자 저장 구조에서 {"인자명" : "인자함량"} 에서 {"인자종류" : {"인자명" : "인자함량"}} 으로 변경되면서  수정해야 함,
+    @GetMapping("/import/cycle")
+    public ApiResponse<?> getExperimentComparisonsByCycle(
+            @RequestParam("fixed") String fixedFactor){
+        return experimentService.getCycleListByFixedFactor(fixedFactor);
     }
 
     @GetMapping("/meta")
     public ApiResponse<?> getExperimentMetas(@RequestParam String userName) {
         return experimentService.getExperimentMetasByUser(userName);
-    }
-    @GetMapping("/chunk")
-    public ApiResponse<?> getExperimentChunks(@RequestParam String expId) {
-        return experimentService.getExperimentChunksByExperimentId(expId);
     }
 }
