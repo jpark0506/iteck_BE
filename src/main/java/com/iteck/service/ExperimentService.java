@@ -11,7 +11,6 @@ import com.iteck.repository.ExperimentMetaRepository;
 import com.iteck.repository.TimeDataRepository;
 import com.iteck.util.ApiStatus;
 import lombok.AllArgsConstructor;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -32,7 +31,6 @@ public class ExperimentService {
     private final ExperimentMetaRepository experimentMetaRepository;
     private final TimeDataRepository timeDataRepository;
     private final CycleDataRepository cycleDataRepository;
-    private final RedisTemplate<String, Object> redisTemplate;
 
 
     public ApiResponse<?> createExperimentData(MultipartFile file, MetaDto metaDto) throws IOException {
