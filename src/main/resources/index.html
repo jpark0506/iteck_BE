@@ -1,135 +1,46 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Experiment Form</title>
+    <title>실험 데이터 플로팅</title>
+    <!-- Chart.js 라이브러리 추가 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* 차트 캔버스 크기 설정 */
+        #experimentChart {
+            width: 80%;
+            height: 400px;
+        }
+    </style>
 </head>
 <body>
-<h2>실험 데이터 입력</h2>
+<h1>실험 데이터 플로팅</h1>
+<!-- Fixed Factor 입력 필드 -->
+<label for="fixedFactor">Fixed Factor:</label>
+<input type="text" id="fixedFactor" placeholder="Fixed Factor 입력">
 
-<!-- 파일 업로드 -->
-<label for="experimentFile">실험 파일:</label>
-<input type="file" id="experimentFile"><br><br>
+<!-- 시간 데이터 로드 버튼 -->
+<button id="loadTimeDataBtn">시간 데이터 로드</button>
+<!-- 사이클 데이터 로드 버튼 -->
+<button id="loadCycleDataBtn">사이클 데이터 로드</button>
 
-<!-- 사용자 정보 입력 -->
-<label for="userName">사용자명:</label>
-<input type="text" id="userName" placeholder="사용자명 입력"><br><br>
+<!-- 그래프 타입 선택 드롭다운 -->
+<label for="graphType">그래프 선택:</label>
+<select id="graphType">
+    <option value="시간-전압 그래프">시간-전압 그래프</option>
+    <option value="시간-전류 그래프">시간-전류 그래프</option>
+    <option value="시간-dQ/dV 그래프">시간-dQ/dV 그래프</option>
+    <option value="사이클-용량 그래프">사이클-용량 그래프</option>
+    <option value="사이클-쿨롱효율 그래프">사이클-쿨롱효율 그래프</option>
+</select>
 
-<label for="title">실험 제목:</label>
-<input type="text" id="title" placeholder="실험 제목 입력"><br><br>
+<!-- 그래프를 표시할 컨테이너 -->
+<div id="graphContainer"></div>
 
-<label for="memo">메모:</label>
-<textarea id="memo" placeholder="실험 메모 입력"></textarea><br><br>
+<!-- 차트를 표시할 캔버스 -->
+<canvas id="experimentChart"></canvas>
 
-<!-- 실험 인자 추가 버튼 -->
-<button id="addParameterBtn">인자 추가</button>
-
-<!-- 실험 인자 입력 폼을 표시할 div -->
-<div id="parameterContainer"></div>
-
-<!-- 실험 저장 버튼 -->
-<button id="saveExperimentBtn">실험 저장</button>
-
-<script>
-    const addParameterBtn = document.getElementById('addParameterBtn');
-    const parameterContainer = document.getElementById('parameterContainer');
-    const saveExperimentBtn = document.getElementById('saveExperimentBtn');
-
-    let parameterIndex = 0;  // 인자 입력 필드의 고유 ID를 생성하는 데 사용
-
-    // 실험 인자 추가 버튼 클릭 시 동적으로 입력 필드를 추가
-    addParameterBtn.onclick = function() {
-        parameterIndex++;
-
-        // 인자명, 인자의 양 입력 필드 생성
-        const parameterDiv = document.createElement('div');
-        parameterDiv.id = `parameter-${parameterIndex}`;
-
-        const nameLabel = document.createElement('label');
-        nameLabel.innerText = '인자명: ';
-        const nameInput = document.createElement('input');
-        nameInput.type = 'text';
-        nameInput.placeholder = '인자명 입력';
-
-        const valueLabel = document.createElement('label');
-        valueLabel.innerText = ' 인자의 양: ';
-        const valueInput = document.createElement('input');
-        valueInput.type = 'number';
-        valueInput.placeholder = '인자 값 입력';
-
-        // 삭제 버튼
-        const removeBtn = document.createElement('button');
-        removeBtn.innerText = '삭제';
-        removeBtn.onclick = function() {
-            parameterContainer.removeChild(parameterDiv);
-        };
-
-        // 생성된 요소들을 div에 추가
-        parameterDiv.appendChild(nameLabel);
-        parameterDiv.appendChild(nameInput);
-        parameterDiv.appendChild(valueLabel);
-        parameterDiv.appendChild(valueInput);
-        parameterDiv.appendChild(removeBtn);
-
-        // parameterContainer에 인자 입력 div 추가
-        parameterContainer.appendChild(parameterDiv);
-    };
-
-    // 실험 저장 버튼 클릭 시 데이터를 서버로 전송
-    saveExperimentBtn.onclick = function() {
-    // 파일 가져오기
-    const file = document.getElementById('experimentFile').files[0];
-
-    // 사용자 정보 가져오기
-    const userName = document.getElementById('userName').value;
-    const title = document.getElementById('title').value;
-    const memo = document.getElementById('memo').value;
-
-    // 실험 인자 추출
-    const parameters = {};
-    for (let i = 0; i < parameterIndex; i++) {
-        const paramDiv = document.getElementById(`parameter-${i + 1}`);
-        if (paramDiv) {
-            const nameInput = paramDiv.querySelector('input[type="text"]');
-            const valueInput = paramDiv.querySelector('input[type="number"]');
-
-            const name = nameInput.value;
-            const value = valueInput.value;
-
-            if (name && value) {
-                parameters[name] = value;
-            }
-        }
-    }
-
-    // FormData 생성 및 데이터 추가
-    const formData = new FormData();
-    if (file) {
-        formData.append('file', file);  // 파일 추가
-    }
-
-    formData.append('userName', userName);  // 사용자명 추가
-    formData.append('title', title);        // 실험 제목 추가
-    formData.append('memo', memo);          // 메모 추가
-
-    // 'factors'를 JSON으로 변환 후 Blob으로 추가
-    formData.append('factors', JSON.stringify(parameters));
-
-    // 서버로 POST 요청 전송
-    fetch('http://localhost:8080/exp/upload', {
-        method: 'POST',
-        body: formData  // Content-Type 헤더는 설정하지 않음
-    }).then(response => response.json())
-      .then(result => {
-          console.log('서버 응답:', result);
-          alert('실험이 성공적으로 저장되었습니다!');
-      })
-      .catch(error => {
-          console.error('실험 저장 중 오류 발생:', error);
-          alert('실험 저장 중 오류가 발생했습니다.');
-      });
-};
-</script>
+<!-- JavaScript 파일 연결 -->
+<script src="script.js"></script>
 </body>
 </html>

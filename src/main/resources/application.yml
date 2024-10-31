@@ -7,6 +7,9 @@ spring:
       host: localhost
       port: 27017
       database: iteck
+  redis:
+    host: localhost        # Redis 서버 호스트
+    port: 6379
   servlet:
     multipart:
       max-file-size: 50MB
