@@ -10,7 +10,6 @@ import java.util.List;
 @Repository
 public interface ExperimentMetaRepository extends MongoRepository<ExperimentMeta, String> {
     public List<ExperimentMeta> findByUserName(String userName);
-    @Query("{ 'factors.?0' : { $exists: true } }")
-    public List<ExperimentMeta> findByDynamicFactorKey(String key);
 
+    ExperimentMeta findByTitle(String title);
 }
