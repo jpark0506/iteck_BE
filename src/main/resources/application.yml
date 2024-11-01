@@ -4,10 +4,8 @@ spring:
       - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
   data:
     mongodb:
-      host: localhost
-      port: 27017
+      uri: mongodb+srv://iteckinhauniv:${MONGO_PASSWORD}@cluster0.sgwdn.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
       database: iteck
-
   servlet:
     multipart:
       max-file-size: 50MB

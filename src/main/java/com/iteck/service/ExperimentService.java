@@ -36,7 +36,7 @@ public class ExperimentService {
     private final ExperimentMetaCustomRepository experimentMetaCustomRepository;
 
 
-    public ApiResponse<?> createExperimentData(MultipartFile file, MetaDto metaDto) throws IOException {
+    public ApiResponse<?>  createExperimentData(MultipartFile file, MetaDto metaDto) throws IOException {
         String experimentId = UUID.randomUUID().toString();
 
         // CSV 파일 여부 확인
