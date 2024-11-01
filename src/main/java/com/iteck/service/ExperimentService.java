@@ -3,10 +3,7 @@ package com.iteck.service;
 import com.iteck.domain.CycleData;
 import com.iteck.domain.ExperimentMeta;
 import com.iteck.domain.TimeData;
-import com.iteck.dto.ApiResponse;
-import com.iteck.dto.MetaDto;
-import com.iteck.dto.ResponseDto;
-import com.iteck.dto.TimeDto;
+import com.iteck.dto.*;
 import com.iteck.repository.CycleDataRepository;
 import com.iteck.repository.ExperimentMetaCustomRepository;
 import com.iteck.repository.ExperimentMetaRepository;
@@ -72,8 +69,11 @@ public class ExperimentService {
         List<Integer> cycleIndexPositions = new ArrayList<>();
 
         // 데이터를 읽고 저장
+        // 데이터를 읽고 저장
         while ((line = reader.readLine()) != null) {
             String[] data = line.split(",");
+
+            // 첫 번째 행이 헤더인지 확인
             if (isHeader) {
                 headers = data;
                 isHeader = false;
@@ -83,33 +83,39 @@ public class ExperimentService {
 
             // 첫 번째 그룹 (TimeData의 expSpec에 추가할 데이터)
             int firstCycleIdx = cycleIndexPositions.get(0);
-            Map<String, Object> timeRowData = createRowMap(headers, data, firstCycleIdx + 1, cycleIndexPositions.get(1));
-            timeRowData.put("cycleIndex", parseValue(data[firstCycleIdx])); // cycleIndex 추가
-            timeExpSpecBuffer.add(timeRowData);
+            if (firstCycleIdx < data.length) {
+                Map<String, Object> timeRowData = createRowMap(headers, data, firstCycleIdx + 1, cycleIndexPositions.get(1));
+                timeRowData.put("cycleIndex", parseValue(data[firstCycleIdx]));
+                timeExpSpecBuffer.add(timeRowData);
+
+                if (timeExpSpecBuffer.size() == chunkSize) {
+                    saveTimeDataChunkAsync(experimentId, timeDataChunkId++, timeExpSpecBuffer);
+                    timeExpSpecBuffer.clear();
+                }
+            }
 
             // 두 번째 그룹 (CycleData의 expSpec에 추가할 데이터)
-            int secondCycleIdx = cycleIndexPositions.get(1);
-            Map<String, Object> cycleRowData = createRowMap(headers, data, secondCycleIdx + 1, data.length);
-            cycleExpSpecBuffer.add(cycleRowData);
+            if (cycleIndexPositions.size() > 1) {
+                int secondCycleIdx = cycleIndexPositions.get(1);
+                if (secondCycleIdx < data.length) {
+                    Map<String, Object> cycleRowData = createRowMap(headers, data, secondCycleIdx, data.length);
+                    cycleExpSpecBuffer.add(cycleRowData);
 
-            // Chunk 크기에 도달할 때마다 TimeData와 CycleData 저장
-            if (timeExpSpecBuffer.size() == chunkSize) {
-                saveTimeDataChunkAsync(experimentId, timeDataChunkId++, timeExpSpecBuffer);
-                timeExpSpecBuffer.clear(); // 버퍼 초기화
-            }
-            if (cycleExpSpecBuffer.size() == chunkSize) {
-                saveCycleDataChunkAsync(experimentId, cycleDataChunkId++, cycleExpSpecBuffer);
-                cycleExpSpecBuffer.clear(); // 버퍼 초기화
+                    if (cycleExpSpecBuffer.size() == chunkSize) {
+                        saveCycleDataChunkAsync(experimentId, cycleDataChunkId++, cycleExpSpecBuffer);
+                        cycleExpSpecBuffer.clear();
+                    }
+                }
             }
         }
 
-        // 남은 데이터 저장
         if (!timeExpSpecBuffer.isEmpty()) {
             saveTimeDataChunkAsync(experimentId, timeDataChunkId, timeExpSpecBuffer);
         }
         if (!cycleExpSpecBuffer.isEmpty()) {
             saveCycleDataChunkAsync(experimentId, cycleDataChunkId, cycleExpSpecBuffer);
         }
+
 
         return ApiResponse.fromResultStatus(ApiStatus.SUC_EXPERIMENT_CREATE);
     }
@@ -127,13 +133,18 @@ public class ExperimentService {
 
     @Async
     private void saveCycleDataChunkAsync(String experimentId, int chunkId, List<Map<String, Object>> expSpec) {
+        // expSpec 내용 출력
+        System.out.println("CycleData expSpec 내용: " + expSpec);
+
         CycleData cycleData = CycleData.builder()
                 .experimentId(experimentId)
                 .chunkId(chunkId)
                 .expSpec(new ArrayList<>(expSpec)) // 버퍼 내용을 복사하여 설정
                 .build();
+
         cycleDataRepository.save(cycleData);
     }
+
 
 
 
@@ -142,31 +153,9 @@ public class ExperimentService {
         return ApiResponse.fromResultStatus(ApiStatus.SUC_EXPERIMENT_READ, experimentMetas);
     }
 
-    private CompletableFuture<List<TimeDto.withCurrent>> getTimesAsync(String experimentId, String yFactor) {
-        return CompletableFuture.supplyAsync(() -> {
-            List<TimeData> timeDataList = timeDataRepository.findByExperimentId(experimentId);
 
-            // 필요한 필드만 추출하여 TimeDto.withCurrent로 변환
-            return timeDataList.stream()
-                    .flatMap(timeData -> timeData.getExpSpec().stream())
-                    .map(expSpec -> {
-                        // Total Time을 String으로 변환 (존재하지 않을 경우 null)
-                        String totalTime = expSpec.get("Total Time") != null ? expSpec.get("Total Time").toString() : null;
 
-                        // Current(mA)를 Double로 받고 필요 시 String으로 변환
-                        String current = yFactor.equals("current") && expSpec.get("Current(mA)") != null
-                                ? expSpec.get("Current(mA)").toString()
-                                : null;
 
-                        return TimeDto.withCurrent.builder()
-                                .totalTime(totalTime)
-                                .current(current)
-                                .build();
-                    })
-                    .filter(dto -> dto.getCurrent() != null) // 필요한 필드가 있는 항목만 필터링
-                    .toList();
-        });
-    }
 
 
     @Async
@@ -175,24 +164,75 @@ public class ExperimentService {
         return CompletableFuture.completedFuture(cycleDatas);
     }
 
-    // TODO: 인자 저장 구조에서 {"인자명" : "인자함량"} 에서 {"인자종류" : {"인자명" : "인자함량"}} 으로 변경되면서  수정해야 함,
-    public ApiResponse<?> getTimeListByFixedFactor(String fixedFactor, String yFactor) {
-        // ExperimentMeta 조회
-        List<ExperimentMeta> experimentMetas = experimentMetaCustomRepository.findByFactorKeyExists(fixedFactor);
+    // 1. getTimesAsync 메서드: yFactor에 따라 명확한 타입 반환
+    @Async
+    private CompletableFuture<List<?>> getTimesAsync(String experimentId, String yFactor) {
+        return CompletableFuture.supplyAsync(() -> {
+            List<TimeData> timeDataList = timeDataRepository.findByExperimentId(experimentId);
+
+            return timeDataList.stream()
+                    .flatMap(timeData -> timeData.getExpSpec().stream())
+                    .map(expSpec -> {
+                        String totalTime = expSpec.get("Total Time") != null ? expSpec.get("Total Time").toString() : null;
+                        String value = yFactor.equals("current") && expSpec.get("Current(mA)") != null
+                                ? expSpec.get("Current(mA)").toString()
+                                : yFactor.equals("voltage") && expSpec.get("Voltage(V)") != null
+                                ? expSpec.get("Voltage(V)").toString()
+                                : null;
+
+                        // yFactor에 따라 명확한 타입 반환
+                        return TimeDto.createTimeDto(yFactor, totalTime, value);
+                    })
+                    .filter(dto -> dto != null)
+                    .toList();
+        });
+    }
+
+    @Async
+    private CompletableFuture<List<?>> getCyclesAsync(String experimentId, String yFactor){
+        return CompletableFuture.supplyAsync(() -> {
+                    List<CycleData> cycleDataList = cycleDataRepository.findByExperimentId(experimentId);
+                    return cycleDataList.stream()
+                            .flatMap(cycleData -> cycleData.getExpSpec().stream())
+                            .map(expSpec -> {
+                                String cycleIndex = expSpec.get("Cycle Index") != null ? expSpec.get("Cycle Index").toString() : null;
+                                String whichCap = yFactor.equals("dchgToChg") && expSpec.get("DChg_ Spec_ Cap_(mAh/g)") != null
+                                        ? expSpec.get("DChg_ Spec_ Cap_(mAh/g)").toString()
+                                        : yFactor.equals("chgToDchg") && expSpec.get("Chg_ Spec_ Cap_(mAh/g)") != null
+                                        ? expSpec.get("Chg_ Spec_ Cap_(mAh/g)").toString()
+                                        : null;
+                                String whichRatio = yFactor.equals("dchgToChg") && expSpec.get("DChg/Chg Ratio (%)") != null
+                                        ? expSpec.get("DChg/Chg Ratio (%)").toString()
+                                        : yFactor.equals("chgToDchg") && expSpec.get("Chg/DChg Ratio (%)") != null
+                                        ? expSpec.get("Chg/DChg Ratio (%)").toString()
+                                        : null;
+                                return CycleDto.createCycleDto(yFactor, cycleIndex, whichCap, whichRatio);
+                            })
+                            .filter(dto -> dto != null)
+                            .toList();
+                });
+    }
+
+
+
+    // 2. getTimeListByFixedFactor 메서드
+    @Async
+    public CompletableFuture<ApiResponse<?>> getTimeListByFixedFactor(String factorKind, String fixedFactor, String yFactor) {
+        ApiResponse<?> response;
+        List<ExperimentMeta> experimentMetas = experimentMetaCustomRepository.findByFactorKeyExists(factorKind, fixedFactor);
         List<String> experimentIds = experimentMetas.stream()
                 .map(ExperimentMeta::getExperimentId)
                 .toList();
 
         // CompletableFuture로 비동기 처리하여 각 experimentId의 TimeData를 가져옴
-        List<CompletableFuture<List<TimeDto.withCurrent>>> futureTimeDtos = experimentIds.stream()
+        List<CompletableFuture<List<?>>> futureTimeDtos = experimentIds.stream()
                 .map(id -> getTimesAsync(id, yFactor))
                 .toList();
 
-        // 모든 비동기 작업이 완료될 때까지 대기
         CompletableFuture.allOf(futureTimeDtos.toArray(new CompletableFuture[0])).join();
 
         // 결과를 맵으로 변환
-        Map<String, List<TimeDto.withCurrent>> timeDtoMap = new HashMap<>();
+        Map<String, List<?>> timeDtoMap = new HashMap<>();
         for (int i = 0; i < experimentIds.size(); i++) {
             try {
                 timeDtoMap.put(experimentIds.get(i), futureTimeDtos.get(i).get());
@@ -201,60 +241,81 @@ public class ExperimentService {
             }
         }
 
-        // ResponseDto.TimeWithCurrent 생성
-        List<ResponseDto.TimeWithCurrent> timeWithCurrentList = experimentMetas.stream()
-                .map(meta -> new ResponseDto.TimeWithCurrent(
-                        meta,
-                        Collections.singletonMap("time: " + meta.getExperimentId(),
-                                timeDtoMap.getOrDefault(meta.getExperimentId(), new ArrayList<>()))
-                ))
-                .toList();
 
-        return ApiResponse.fromResultStatus(ApiStatus.SUC_EXPERIMENT_READ, timeWithCurrentList);
+        if (yFactor.equals("current")) {
+            List<ResponseDto.TimeWithCurrent> timeWithCurrentList = experimentMetas.stream()
+                    .map(meta -> new ResponseDto.TimeWithCurrent(
+                            meta,
+                            Collections.singletonMap("time: " + meta.getExperimentId(),
+                                    (List<TimeDto.withCurrent>) (List<?>) timeDtoMap.getOrDefault(meta.getExperimentId(), new ArrayList<>()))
+                    ))
+                    .toList();
+            response = ApiResponse.fromResultStatus(ApiStatus.SUC_EXPERIMENT_READ, timeWithCurrentList);
+        } else if (yFactor.equals("voltage")) {
+            List<ResponseDto.TimeWithVoltage> timeWithVoltageList = experimentMetas.stream()
+                    .map(meta -> new ResponseDto.TimeWithVoltage(
+                            meta,
+                            Collections.singletonMap("time: " + meta.getExperimentId(),
+                                    (List<TimeDto.withVoltage>) (List<?>) timeDtoMap.getOrDefault(meta.getExperimentId(), new ArrayList<>()))
+                    ))
+                    .toList();
+            response = ApiResponse.fromResultStatus(ApiStatus.SUC_EXPERIMENT_READ, timeWithVoltageList);
+        } else {
+            throw new IllegalArgumentException("Unsupported yFactor type");
+        }
+
+        return CompletableFuture.completedFuture(response);
     }
 
-
-    // TODO: 인자 저장 구조에서 {"인자명" : "인자함량"} 에서 {"인자종류" : {"인자명" : "인자함량"}} 으로 변경되면서  수정해야 함,
-    public ApiResponse<?> getCycleListByFixedFactor(String fixedFactor) {
-        List<ExperimentMeta> experimentMetas = experimentMetaCustomRepository.findByFactorKeyExists("ABC");
+    @Async
+    public CompletableFuture<ApiResponse<?>> getCycleListByFixedFactor(String factorKind, String fixedFactor, String yFactor){
+        ApiResponse<?> response;
+        List<ExperimentMeta> experimentMetas = experimentMetaCustomRepository.findByFactorKeyExists(factorKind, fixedFactor);
         List<String> experimentIds = experimentMetas.stream()
                 .map(ExperimentMeta::getExperimentId)
                 .toList();
 
-        // CompletableFuture로 비동기 처리
-        List<CompletableFuture<List<CycleData>>> futureCycleDatas = experimentIds.stream()
-                .map(this::getCyclesAsync)
+        List<CompletableFuture<List<?>>> futureCycleDtos = experimentIds.stream()
+                .map(id -> getCyclesAsync(id, yFactor))
                 .toList();
 
-        // 모든 비동기 작업이 완료될 때까지 대기
-        CompletableFuture.allOf(futureCycleDatas.toArray(new CompletableFuture[0])).join();
-
-        // 결과를 맵으로 변환
-        Map<String, List<CycleData>> cycleMap = new HashMap<>();
+        CompletableFuture.allOf(futureCycleDtos.toArray(new CompletableFuture[0])).join();
+        Map<String, List<?>> cycleDtoMap = new HashMap<>();
         for (int i = 0; i < experimentIds.size(); i++) {
             try {
-                cycleMap.put(experimentIds.get(i), futureCycleDatas.get(i).get());
-            } catch (Exception ignored){
-
+                cycleDtoMap.put(experimentIds.get(i), futureCycleDtos.get(i).get());
+            } catch (Exception ignored) {
+                // 예외 처리
             }
-
         }
-        List<ResponseDto.Cycle> cycleDtoList = experimentMetas.stream()
-                .map(meta -> ResponseDto.Cycle.builder()
-                        .meta(meta)
-                        .cycleDatas(Collections.singletonMap("cycle: " + meta.getExperimentId(),
-                                cycleMap.getOrDefault(meta.getExperimentId(), new ArrayList<>())))
-                        .build())
-                .toList();
-
-        return ApiResponse.fromResultStatus(ApiStatus.SUC_EXPERIMENT_READ, cycleDtoList);
+        if (yFactor.equals("dchgToChg")) {
+            List<ResponseDto.CycleDchgToChg> cycleDchgToChgList = experimentMetas.stream()
+                    .map(meta -> new ResponseDto.CycleDchgToChg(
+                            meta,
+                            Collections.singletonMap("time: " + meta.getExperimentId(),
+                                    (List<CycleDto.dchgToChg>) (List<?>) cycleDtoMap.getOrDefault(meta.getExperimentId(), new ArrayList<>()))
+                    ))
+                    .toList();
+            response = ApiResponse.fromResultStatus(ApiStatus.SUC_EXPERIMENT_READ, cycleDchgToChgList);
+        } else if (yFactor.equals("chgToDchg")) {
+            List<ResponseDto.CycleChgToDchg> cycleChgToDchgList = experimentMetas.stream()
+                    .map(meta -> new ResponseDto.CycleChgToDchg(
+                            meta,
+                            Collections.singletonMap("time: " + meta.getExperimentId(),
+                                    (List<CycleDto.chgToDchg>) (List<?>) cycleDtoMap.getOrDefault(meta.getExperimentId(), new ArrayList<>()))
+                    ))
+                    .toList();
+            response = ApiResponse.fromResultStatus(ApiStatus.SUC_EXPERIMENT_READ, cycleChgToDchgList);
+        } else {
+            throw new IllegalArgumentException("Unsupported yFactor type");
+        }
+        return CompletableFuture.completedFuture(response);
     }
 
-
-
-
-
-
-
-
+    // TODO
+    public ApiResponse<?> fetchExperiementWithOutliers(String title){
+        ExperimentMeta experimentMeta = experimentMetaRepository.findByTitle(title);
+        String experimentId = experimentMeta.getExperimentId();
+        return ApiResponse.fromResultStatus(ApiStatus.SUC_FACTOR_CREATE);
+    }
 }
