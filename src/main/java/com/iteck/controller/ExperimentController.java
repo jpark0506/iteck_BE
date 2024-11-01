@@ -17,6 +17,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.beans.PropertyEditorSupport;
 import java.io.*;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 @RestController
 @RequestMapping("/exp")
@@ -40,35 +41,37 @@ public class ExperimentController {
             }
         });
     }
-
+    // NOTICE : 제 로컬 환경에서는 MetaDto 형식으로 받게끔 js 코드를 구현해놔서 이렇게 변경했습니다!
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<?> uploadExperiment(
-        @RequestParam("metaDto") String metaDtoJson,
-        @RequestPart("file") MultipartFile file
+            @RequestPart("metaDto") MetaDto metaDto,   // JSON 데이터
+            @RequestPart("file") MultipartFile file    // 파일
     ) throws IOException {
-        
-        ObjectMapper objectMapper = new ObjectMapper();
-        MetaDto metaDto = objectMapper.readValue(metaDtoJson, MetaDto.class);
-
         return experimentService.createExperimentData(file, metaDto);
     }
 
-
-    // TODO: 인자 저장 구조에서 {"인자명" : "인자함량"} 에서 {"인자종류" : {"인자명" : "인자함량"}} 으로 변경되면서  수정해야 함,
     @GetMapping("/import/time")
-    public ApiResponse<?> getExperimentComparisonsByTime(
+    public CompletableFuture<ApiResponse<?>> getExperimentComparisonsByTime(
+            @RequestParam("kind") String factorKind,
             @RequestParam("fixed") String fixedFactor,
-            @RequestParam(value = "yFactor", defaultValue = "current") String yFactor
+            @RequestParam(value = "yFactor", defaultValue = "voltage") String yFactor
             ){
-        return experimentService.getTimeListByFixedFactor(fixedFactor, yFactor);
+        return experimentService.getTimeListByFixedFactor(factorKind, fixedFactor, yFactor);
     }
 
-
-    // TODO: 인자 저장 구조에서 {"인자명" : "인자함량"} 에서 {"인자종류" : {"인자명" : "인자함량"}} 으로 변경되면서  수정해야 함,
     @GetMapping("/import/cycle")
-    public ApiResponse<?> getExperimentComparisonsByCycle(
-            @RequestParam("fixed") String fixedFactor){
-        return experimentService.getCycleListByFixedFactor(fixedFactor);
+    public CompletableFuture<ApiResponse<?>> getExperimentComparisonsByCycle(
+            @RequestParam("kind") String factorKind,
+            @RequestParam("fixed") String fixedFactor,
+            @RequestParam(value = "yFactor", defaultValue = "dchgToChg") String yFactor
+            ){
+       return experimentService.getCycleListByFixedFactor(factorKind, fixedFactor, yFactor);
+   }
+
+   // TODO: 이상치 감지 서비스 로직 구현 예정
+    @GetMapping("/detect")
+    public ApiResponse<?> getOutliers(@RequestParam String title) {
+        return experimentService.fetchExperiementWithOutliers(title);
     }
 
     @GetMapping("/meta")
