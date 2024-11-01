@@ -15,15 +15,29 @@ public class ResponseDto {
     @Getter
     @Builder
     @AllArgsConstructor
-    public static class Time{
+    public static class TimeWithVoltage{
         private ExperimentMeta meta;
-        private Map<String, List<TimeData>> timeDatas;
+        private Map<String, List<TimeDto.withVoltage>> timeDatas;
     }
     @Getter
     @Builder
     @AllArgsConstructor
-    public static class Cycle{
+    public static class TimeWithCurrent{
         private ExperimentMeta meta;
-        private Map<String, List<CycleData>> cycleDatas;
+        private Map<String, List<TimeDto.withCurrent>> timeDatas;
+    }
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class CycleDchgToChg{
+        private ExperimentMeta meta;
+        private Map<String, List<CycleDto.dchgToChg>> cycleDatas;
+    }
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class CycleChgToDchg{
+        private ExperimentMeta meta;
+        private Map<String, List<CycleDto.chgToDchg>> cycleDatas;
     }
 }
