@@ -53,8 +53,10 @@ public class ExperimentController {
     // TODO: 인자 저장 구조에서 {"인자명" : "인자함량"} 에서 {"인자종류" : {"인자명" : "인자함량"}} 으로 변경되면서  수정해야 함,
     @GetMapping("/import/time")
     public ApiResponse<?> getExperimentComparisonsByTime(
-            @RequestParam("fixed") String fixedFactor){
-        return experimentService.getTimeListByFixedFactor(fixedFactor);
+            @RequestParam("fixed") String fixedFactor,
+            @RequestParam(value = "yFactor", defaultValue = "current") String yFactor
+            ){
+        return experimentService.getTimeListByFixedFactor(fixedFactor, yFactor);
     }
 
 
