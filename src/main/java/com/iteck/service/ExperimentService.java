@@ -6,7 +6,9 @@ import com.iteck.domain.TimeData;
 import com.iteck.dto.ApiResponse;
 import com.iteck.dto.MetaDto;
 import com.iteck.dto.ResponseDto;
+import com.iteck.dto.TimeDto;
 import com.iteck.repository.CycleDataRepository;
+import com.iteck.repository.ExperimentMetaCustomRepository;
 import com.iteck.repository.ExperimentMetaRepository;
 import com.iteck.repository.TimeDataRepository;
 import com.iteck.util.ApiStatus;
@@ -31,6 +33,7 @@ public class ExperimentService {
     private final ExperimentMetaRepository experimentMetaRepository;
     private final TimeDataRepository timeDataRepository;
     private final CycleDataRepository cycleDataRepository;
+    private final ExperimentMetaCustomRepository experimentMetaCustomRepository;
 
 
     public ApiResponse<?> createExperimentData(MultipartFile file, MetaDto metaDto) throws IOException {
@@ -139,11 +142,33 @@ public class ExperimentService {
         return ApiResponse.fromResultStatus(ApiStatus.SUC_EXPERIMENT_READ, experimentMetas);
     }
 
-    @Async
-    public CompletableFuture<List<TimeData>> getTimesAsync(String experimentId) {
-        List<TimeData> timeDatas = timeDataRepository.findByExperimentId(experimentId);
-        return CompletableFuture.completedFuture(timeDatas);
+    private CompletableFuture<List<TimeDto.withCurrent>> getTimesAsync(String experimentId, String yFactor) {
+        return CompletableFuture.supplyAsync(() -> {
+            List<TimeData> timeDataList = timeDataRepository.findByExperimentId(experimentId);
+
+            // 필요한 필드만 추출하여 TimeDto.withCurrent로 변환
+            return timeDataList.stream()
+                    .flatMap(timeData -> timeData.getExpSpec().stream())
+                    .map(expSpec -> {
+                        // Total Time을 String으로 변환 (존재하지 않을 경우 null)
+                        String totalTime = expSpec.get("Total Time") != null ? expSpec.get("Total Time").toString() : null;
+
+                        // Current(mA)를 Double로 받고 필요 시 String으로 변환
+                        String current = yFactor.equals("current") && expSpec.get("Current(mA)") != null
+                                ? expSpec.get("Current(mA)").toString()
+                                : null;
+
+                        return TimeDto.withCurrent.builder()
+                                .totalTime(totalTime)
+                                .current(current)
+                                .build();
+                    })
+                    .filter(dto -> dto.getCurrent() != null) // 필요한 필드가 있는 항목만 필터링
+                    .toList();
+        });
     }
+
+
     @Async
     public CompletableFuture<List<CycleData>> getCyclesAsync(String experimentId) {
         List<CycleData> cycleDatas = cycleDataRepository.findByExperimentId(experimentId);
@@ -151,44 +176,47 @@ public class ExperimentService {
     }
 
     // TODO: 인자 저장 구조에서 {"인자명" : "인자함량"} 에서 {"인자종류" : {"인자명" : "인자함량"}} 으로 변경되면서  수정해야 함,
-    public ApiResponse<?> getTimeListByFixedFactor(String fixedFactor) {
-        List<ExperimentMeta> experimentMetas = experimentMetaRepository.findByDynamicFactorKey(fixedFactor);
+    public ApiResponse<?> getTimeListByFixedFactor(String fixedFactor, String yFactor) {
+        // ExperimentMeta 조회
+        List<ExperimentMeta> experimentMetas = experimentMetaCustomRepository.findByFactorKeyExists(fixedFactor);
         List<String> experimentIds = experimentMetas.stream()
                 .map(ExperimentMeta::getExperimentId)
                 .toList();
 
-        // CompletableFuture로 비동기 처리
-        List<CompletableFuture<List<TimeData>>> futureTimeDatas = experimentIds.stream()
-                .map(this::getTimesAsync)
+        // CompletableFuture로 비동기 처리하여 각 experimentId의 TimeData를 가져옴
+        List<CompletableFuture<List<TimeDto.withCurrent>>> futureTimeDtos = experimentIds.stream()
+                .map(id -> getTimesAsync(id, yFactor))
                 .toList();
 
         // 모든 비동기 작업이 완료될 때까지 대기
-        CompletableFuture.allOf(futureTimeDatas.toArray(new CompletableFuture[0])).join();
+        CompletableFuture.allOf(futureTimeDtos.toArray(new CompletableFuture[0])).join();
 
         // 결과를 맵으로 변환
-        Map<String, List<TimeData>> timeMap = new HashMap<>();
+        Map<String, List<TimeDto.withCurrent>> timeDtoMap = new HashMap<>();
         for (int i = 0; i < experimentIds.size(); i++) {
             try {
-                timeMap.put(experimentIds.get(i), futureTimeDatas.get(i).get());
-            } catch (Exception ignored){
-
+                timeDtoMap.put(experimentIds.get(i), futureTimeDtos.get(i).get());
+            } catch (Exception ignored) {
+                // 예외 처리
             }
-
         }
-        List<ResponseDto.Time> timeDtoList = experimentMetas.stream()
-                .map(meta -> ResponseDto.Time.builder()
-                        .meta(meta)
-                        .timeDatas(Collections.singletonMap("time: " + meta.getExperimentId(),
-                                timeMap.getOrDefault(meta.getExperimentId(), new ArrayList<>())))
-                        .build())
+
+        // ResponseDto.TimeWithCurrent 생성
+        List<ResponseDto.TimeWithCurrent> timeWithCurrentList = experimentMetas.stream()
+                .map(meta -> new ResponseDto.TimeWithCurrent(
+                        meta,
+                        Collections.singletonMap("time: " + meta.getExperimentId(),
+                                timeDtoMap.getOrDefault(meta.getExperimentId(), new ArrayList<>()))
+                ))
                 .toList();
 
-        return ApiResponse.fromResultStatus(ApiStatus.SUC_EXPERIMENT_READ, timeDtoList);
+        return ApiResponse.fromResultStatus(ApiStatus.SUC_EXPERIMENT_READ, timeWithCurrentList);
     }
+
 
     // TODO: 인자 저장 구조에서 {"인자명" : "인자함량"} 에서 {"인자종류" : {"인자명" : "인자함량"}} 으로 변경되면서  수정해야 함,
     public ApiResponse<?> getCycleListByFixedFactor(String fixedFactor) {
-        List<ExperimentMeta> experimentMetas = experimentMetaRepository.findByDynamicFactorKey(fixedFactor);
+        List<ExperimentMeta> experimentMetas = experimentMetaCustomRepository.findByFactorKeyExists("ABC");
         List<String> experimentIds = experimentMetas.stream()
                 .map(ExperimentMeta::getExperimentId)
                 .toList();
