@@ -153,11 +153,6 @@ public class ExperimentService {
         return ApiResponse.fromResultStatus(ApiStatus.SUC_EXPERIMENT_READ, experimentMetas);
     }
 
-
-
-
-
-
     @Async
     public CompletableFuture<List<CycleData>> getCyclesAsync(String experimentId) {
         List<CycleData> cycleDatas = cycleDataRepository.findAllByExperimentId(experimentId);
@@ -355,8 +350,6 @@ public class ExperimentService {
                 // 예외 처리
             }
         }
-
-
         List<ResponseDto.VoltageWithDQmDv> voltageWithDQmDvList = experimentMetas.stream()
                 .map(meta -> new ResponseDto.VoltageWithDQmDv(
                         meta,
