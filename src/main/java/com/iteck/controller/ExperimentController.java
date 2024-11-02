@@ -67,13 +67,17 @@ public class ExperimentController {
             ){
        return experimentService.getCycleListByFixedFactor(factorKind, fixedFactor, yFactor);
    }
+   @GetMapping("/import/voltage")
+    public CompletableFuture<ApiResponse<?>> getExperimentComparisonsByVoltage(
+            @RequestParam("kind") String factorKind,
+            @RequestParam("fixed") String fixedFactor) {
+       return experimentService.getVoltageListByFixedFactor(factorKind, fixedFactor);
+   }
 
-   // TODO: 이상치 감지 서비스 로직 구현 예정
-    @GetMapping("/detect")
-    public ApiResponse<?> getOutliers(@RequestParam String title) {
+   @GetMapping("/detect")
+   public ApiResponse<?> getOutliers(@RequestParam String title) {
         return experimentService.fetchExperiementWithOutliers(title);
     }
-
     @GetMapping("/meta")
     public ApiResponse<?> getExperimentMetas(@RequestParam String userName) {
         return experimentService.getExperimentMetasByUser(userName);
