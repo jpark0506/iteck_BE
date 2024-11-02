@@ -22,6 +22,16 @@ public class CycleDto {
         private String chgCap;
         private String chgRatio;
     }
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class withOutlier{
+        private String cycleIndex;
+        private String chgCap;
+        private String dchgCap;
+        private boolean chgOutlying;
+        private boolean dchgOutlying;
+    }
 
     public static Object createCycleDto(String yFactor, String cycleIndex, String whichCap, String whichRatio){
         return switch (yFactor) {
@@ -38,5 +48,15 @@ public class CycleDto {
                     .build();
             default -> throw new IllegalArgumentException("Unsupported yFactor type");
         };
+    }
+    public static Object createCycleDtoWithOutlier(String cycleIndex, String chgCap, String dchgCap,
+                                                   Boolean chgOutlying, Boolean dchgOutlying){
+        return withOutlier.builder()
+                .cycleIndex(cycleIndex)
+                .chgCap(chgCap)
+                .dchgCap(dchgCap)
+                .chgOutlying(chgOutlying)
+                .dchgOutlying(dchgOutlying)
+                .build();
     }
 }
