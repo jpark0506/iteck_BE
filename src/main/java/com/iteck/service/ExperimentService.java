@@ -160,7 +160,7 @@ public class ExperimentService {
 
     @Async
     public CompletableFuture<List<CycleData>> getCyclesAsync(String experimentId) {
-        List<CycleData> cycleDatas = cycleDataRepository.findByExperimentId(experimentId);
+        List<CycleData> cycleDatas = cycleDataRepository.findAllByExperimentId(experimentId);
         return CompletableFuture.completedFuture(cycleDatas);
     }
 
@@ -191,7 +191,7 @@ public class ExperimentService {
     @Async
     private CompletableFuture<List<?>> getCyclesAsync(String experimentId, String yFactor){
         return CompletableFuture.supplyAsync(() -> {
-                    List<CycleData> cycleDataList = cycleDataRepository.findByExperimentId(experimentId);
+                    List<CycleData> cycleDataList = cycleDataRepository.findAllByExperimentId(experimentId);
                     return cycleDataList.stream()
                             .flatMap(cycleData -> cycleData.getExpSpec().stream())
                             .map(expSpec -> {
@@ -211,6 +211,53 @@ public class ExperimentService {
                             .filter(dto -> dto != null)
                             .toList();
                 });
+    }
+
+    @Async
+    private CompletableFuture<List<?>> getOutliersAsync(String experimentId) {
+        return CompletableFuture.supplyAsync(() -> {
+            CycleData cycleData = cycleDataRepository.findFirstByExperimentId(experimentId);
+
+            // CycleData 혹은 expSpec이 null인 경우 빈 리스트 반환
+            if (cycleData == null || cycleData.getExpSpec() == null) {
+                return List.of();
+            }
+
+            // expSpec의 첫 번째 항목을 기준값으로 설정
+            List<CycleDto.withOutlier> cycleDtosWithOutliers = cycleData.getExpSpec().stream()
+                    .map(expSpec -> {
+                        String cycleIndex = expSpec.get("Cycle Index") != null ? expSpec.get("Cycle Index").toString() : null;
+                        String chgCap = expSpec.get("Chg_ Spec_ Cap_(mAh/g)") != null
+                                ? expSpec.get("Chg_ Spec_ Cap_(mAh/g)").toString()
+                                : null;
+                        String dchgCap = expSpec.get("DChg_ Spec_ Cap_(mAh/g)") != null
+                                ? expSpec.get("DChg_ Spec_ Cap_(mAh/g)").toString()
+                                : null;
+                        return new CycleDto.withOutlier(cycleIndex, chgCap, dchgCap, false, false);
+                    })
+                    .filter(dto -> dto.getChgCap() != null && dto.getDchgCap() != null) // null 값 필터링
+                    .toList();
+
+            // 기준값 설정
+            if (!cycleDtosWithOutliers.isEmpty()) {
+                CycleDto.withOutlier firstDto = cycleDtosWithOutliers.get(0);
+                double chgThreshold = Double.parseDouble(firstDto.getChgCap()) * 0.7;
+                double dchgThreshold = Double.parseDouble(firstDto.getDchgCap()) * 0.7;
+
+                // 각 항목의 chgCap과 dchgCap을 기준값과 비교하여 이상 여부 설정
+                return cycleDtosWithOutliers.stream()
+                        .map(dto -> {
+                            boolean chgOutlying = Double.parseDouble(dto.getChgCap()) <= chgThreshold;
+                            boolean dchgOutlying = Double.parseDouble(dto.getDchgCap()) <= dchgThreshold;
+                            return CycleDto.createCycleDtoWithOutlier(
+                                    dto.getCycleIndex(), dto.getChgCap(), dto.getDchgCap(), chgOutlying, dchgOutlying
+                            );
+                        })
+                        .toList();
+            } else {
+                return List.of();
+            }
+        });
     }
 
 
@@ -313,9 +360,28 @@ public class ExperimentService {
     }
 
     // TODO
-    public ApiResponse<?> fetchExperiementWithOutliers(String title){
+    public ApiResponse<?> fetchExperiementWithOutliers(String title) {
+        // ExperimentMeta 및 CycleData 조회
         ExperimentMeta experimentMeta = experimentMetaRepository.findByTitle(title);
+        if (experimentMeta == null) {
+            return ApiResponse.fromResultStatus(ApiStatus.NOT_FOUND); // 적절한 상태 반환
+        }
+
         String experimentId = experimentMeta.getExperimentId();
-        return ApiResponse.fromResultStatus(ApiStatus.SUC_FACTOR_CREATE);
+
+        // 비동기적으로 getOutliersAsync 호출
+        CompletableFuture<List<?>> futureOutliers = getOutliersAsync(experimentId);
+
+        try {
+            // 비동기 결과 기다리기
+            List<CycleDto.withOutlier> outliers = (List<CycleDto.withOutlier>) futureOutliers.get();
+
+            // 성공 응답에 이상치 리스트 포함하여 반환
+            return ApiResponse.fromResultStatus(ApiStatus.SUC_FACTOR_CREATE, outliers);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ApiResponse.fromResultStatus(ApiStatus.INTERNAL_SERVER_ERROR); // 예외 발생 시 에러 상태 반환
+        }
     }
+
 }
