@@ -1,0 +1,83 @@
+name: CI / CD
+
+on:
+  push:
+    branches: [deploy]
+
+jobs:
+  CI:
+    runs-on: ubuntu-latest
+
+    env:
+      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      IMAGE_NAME: iteck-be
+      IMAGE_TAG: ${{ github.sha }}
+      MONGO_PASSWORD: ${{secrets.MONGO_PASSWORD }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: 17
+          distribution: 'adopt'
+
+      - name: Google Cloud SDK 설정
+        uses: "google-github-actions/auth@v2"
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Docker를 위한 gcloud 인증 설정
+        run: gcloud auth configure-docker --quiet
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Build with Gradle(Test 제외)
+        run: ./gradlew build --exclude-task test
+
+      - name: Verify JAR file
+        run: ls -la build/libs/
+
+      - name: Docker 이미지 빌드 및 푸시
+        run: |
+          docker build --build-arg SPRING_PROFILE=prod -t gcr.io/${{ env.GCP_PROJECT_ID }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} .
+          docker push gcr.io/${{ env.GCP_PROJECT_ID }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+  CD:
+    runs-on: ubuntu-latest
+    needs: CI
+
+    env:
+      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      IMAGE_NAME: iteck-be
+      IMAGE_TAG: ${{ github.sha }}
+      MONGO_PASSWORD: ${{secrets.MONGO_PASSWORD}}
+    steps:
+        - name: 배포 서버에 SSH로 연결하여 배포
+          uses: appleboy/ssh-action@v0.1.5
+          with:
+            host: ${{ secrets.DEPLOY_SERVER_HOST }}
+            username: ${{ secrets.DEPLOY_SERVER_USER }}
+            key: ${{ secrets.DEPLOY_SSH_KEY }}
+            envs: GCP_PROJECT_ID, IMAGE_NAME, IMAGE_TAG, DEPLOY_PATH, MONGO_PASSWORD
+            script: |
+              
+              if [ $(sudo docker ps -q -f name=${IMAGE_NAME}) ]; then
+                sudo docker stop ${IMAGE_NAME}
+                sudo docker rm ${IMAGE_NAME}
+              fi
+              
+              sudo docker login -u _json_key --password-stdin https://gcr.io <<< '${{ secrets.GCP_SA_KEY }}'
+              sudo docker pull gcr.io/${GCP_PROJECT_ID}/${IMAGE_NAME}:${IMAGE_TAG}
+              
+              sudo docker run -d \
+                --name ${IMAGE_NAME} \
+                --env-file .env \
+                -e MONGO_PASSWORD=${MONGO_PASSWORD} \
+                -p 8080:8080 \
+                gcr.io/${GCP_PROJECT_ID}/${IMAGE_NAME}:${IMAGE_TAG}

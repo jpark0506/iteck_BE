@@ -46,7 +46,7 @@ public class ExperimentController {
         @RequestParam("metaDto") String metaDtoJson,
         @RequestPart("file") MultipartFile file
     ) throws IOException {
-        
+
         ObjectMapper objectMapper = new ObjectMapper();
         MetaDto metaDto = objectMapper.readValue(metaDtoJson, MetaDto.class);
 
