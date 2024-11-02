@@ -9,5 +9,6 @@ import java.util.List;
 @Repository
 public interface CycleDataRepository extends MongoRepository<CycleData, String> {
 
-    List<CycleData> findByExperimentId(String experimentId);
+    List<CycleData> findAllByExperimentId(String experimentId);
+    CycleData findFirstByExperimentId(String experimentId);
 }
