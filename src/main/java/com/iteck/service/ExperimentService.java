@@ -187,6 +187,23 @@ public class ExperimentService {
                     .toList();
         });
     }
+    @Async
+    private CompletableFuture<List<?>> getVoltagesAsync(String experimentId) {
+        return CompletableFuture.supplyAsync(() -> {
+            List<TimeData> timeDataList = timeDataRepository.findByExperimentId(experimentId);
+
+            return timeDataList.stream()
+                    .flatMap(timeData -> timeData.getExpSpec().stream())
+                    .map(expSpec -> {
+                        String voltage = expSpec.get("Voltage(V)") != null ? expSpec.get("Voltage(V)").toString() : null;
+                        String dQmdV = expSpec.get("dQm/dV(mAh/V_g)") != null ? expSpec.get("Current(mA)").toString() : null;
+                        // yFactor에 따라 명확한 타입 반환
+                        return VoltageDto.createVoltageDto(voltage, dQmdV);
+                    })
+                    .filter(dto -> dto != null)
+                    .toList();
+        });
+    }
 
     @Async
     private CompletableFuture<List<?>> getCyclesAsync(String experimentId, String yFactor){
@@ -212,6 +229,7 @@ public class ExperimentService {
                             .toList();
                 });
     }
+
 
     @Async
     private CompletableFuture<List<?>> getOutliersAsync(String experimentId) {
@@ -313,6 +331,43 @@ public class ExperimentService {
 
         return CompletableFuture.completedFuture(response);
     }
+    @Async
+    public CompletableFuture<ApiResponse<?>> getVoltageListByFixedFactor(String factorKind, String fixedFactor) {
+        ApiResponse<?> response;
+        List<ExperimentMeta> experimentMetas = experimentMetaCustomRepository.findByFactorKeyExists(factorKind, fixedFactor);
+        List<String> experimentIds = experimentMetas.stream()
+                .map(ExperimentMeta::getExperimentId)
+                .toList();
+
+        // CompletableFuture로 비동기 처리하여 각 experimentId의 TimeData를 가져옴
+        List<CompletableFuture<List<?>>> futureVoltageDtos = experimentIds.stream()
+                .map(id -> getVoltagesAsync(id))
+                .toList();
+
+        CompletableFuture.allOf(futureVoltageDtos.toArray(new CompletableFuture[0])).join();
+
+        // 결과를 맵으로 변환
+        Map<String, List<?>> voltageDtoMap = new HashMap<>();
+        for (int i = 0; i < experimentIds.size(); i++) {
+            try {
+                voltageDtoMap.put(experimentIds.get(i), futureVoltageDtos.get(i).get());
+            } catch (Exception ignored) {
+                // 예외 처리
+            }
+        }
+
+
+        List<ResponseDto.VoltageWithDQmDv> voltageWithDQmDvList = experimentMetas.stream()
+                .map(meta -> new ResponseDto.VoltageWithDQmDv(
+                        meta,
+                        Collections.singletonMap("experiment: " + meta.getExperimentId(),
+                                (List<VoltageDto.withDQDV>) (List<?>) voltageDtoMap.getOrDefault(meta.getExperimentId(), new ArrayList<>()))
+                ))
+                .toList();
+        response = ApiResponse.fromResultStatus(ApiStatus.SUC_EXPERIMENT_READ, voltageWithDQmDvList);
+
+        return CompletableFuture.completedFuture(response);
+    }
 
     @Async
     public CompletableFuture<ApiResponse<?>> getCycleListByFixedFactor(String factorKind, String fixedFactor, String yFactor){
@@ -359,7 +414,6 @@ public class ExperimentService {
         return CompletableFuture.completedFuture(response);
     }
 
-    // TODO
     public ApiResponse<?> fetchExperiementWithOutliers(String title) {
         // ExperimentMeta 및 CycleData 조회
         ExperimentMeta experimentMeta = experimentMetaRepository.findByTitle(title);
