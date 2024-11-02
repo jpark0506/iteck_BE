@@ -21,6 +21,7 @@ public class TimeDto {
         private String current;
     }
 
+
     public static Object createTimeDto(String yFactor, String totalTime, String value){
         return switch (yFactor) {
             case "current" -> withCurrent.builder()

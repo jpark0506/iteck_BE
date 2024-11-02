@@ -40,4 +40,11 @@ public class ResponseDto {
         private ExperimentMeta meta;
         private Map<String, List<CycleDto.chgToDchg>> cycleDatas;
     }
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class VoltageWithDQmDv{
+        private ExperimentMeta meta;
+        private Map<String, List<VoltageDto.withDQDV>> voltageDatas;
+    }
 }
