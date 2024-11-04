@@ -10,5 +10,6 @@ import java.util.List;
 @Repository
 public interface TimeDataRepository extends MongoRepository<TimeData, String> {
     List<TimeData> findByExperimentId(String experimentId);
+    void deleteByExperimentId(String experimentId);
 }
 

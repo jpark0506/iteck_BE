@@ -409,7 +409,7 @@ public class ExperimentService {
 
     public ApiResponse<?> fetchExperiementWithOutliers(String title) {
         // ExperimentMeta 및 CycleData 조회
-        ExperimentMeta experimentMeta = experimentMetaRepository.findByTitle(title);
+        ExperimentMeta experimentMeta = experimentMetaRepository.findFirstByTitle(title);
         if (experimentMeta == null) {
             return ApiResponse.fromResultStatus(ApiStatus.NOT_FOUND); // 적절한 상태 반환
         }
@@ -430,5 +430,12 @@ public class ExperimentService {
             return ApiResponse.fromResultStatus(ApiStatus.INTERNAL_SERVER_ERROR); // 예외 발생 시 에러 상태 반환
         }
     }
-
+    public ApiResponse<Void> deleteExperimentData(String title){
+        experimentMetaRepository.findAllByTitle(title).forEach(e -> {
+                    timeDataRepository.deleteByExperimentId(e.getExperimentId());
+                    cycleDataRepository.deleteByExperimentId(e.getExperimentId());
+                    experimentMetaRepository.deleteByExperimentId(e.getExperimentId());}
+        );
+        return ApiResponse.fromResultStatus(ApiStatus.SUC_EXPERIMENT_DELETE);
+    }
 }

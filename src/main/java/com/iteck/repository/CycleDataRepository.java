@@ -11,4 +11,6 @@ public interface CycleDataRepository extends MongoRepository<CycleData, String> 
 
     List<CycleData> findAllByExperimentId(String experimentId);
     CycleData findFirstByExperimentId(String experimentId);
+    void deleteByExperimentId(String experimentId);
+
 }
