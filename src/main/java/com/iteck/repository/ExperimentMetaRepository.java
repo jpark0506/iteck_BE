@@ -10,6 +10,9 @@ import java.util.List;
 @Repository
 public interface ExperimentMetaRepository extends MongoRepository<ExperimentMeta, String> {
     public List<ExperimentMeta> findByUserName(String userName);
+    public List<ExperimentMeta> findAllByTitle(String title);
+    ExperimentMeta findFirstByTitle(String title);
+    String findExperimentIdByTitle(String title);
+    void deleteByExperimentId(String experimentId);
 
-    ExperimentMeta findByTitle(String title);
 }
