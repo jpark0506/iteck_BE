@@ -50,11 +50,10 @@ public class ExperimentController {
         return experimentService.createExperimentData(file, metaDto);
     }
 
-    /* TODO: 실험 데이터 삭제
-    @PostMapping(value = "delete")
-    public ApiResponse<?> uploadExperiment(@RequestParam String title) throws IOException {
+    @DeleteMapping(value = "/delete")
+    public ApiResponse<Void> deleteExperiment(@RequestParam String title) throws IOException {
         return experimentService.deleteExperimentData(title);
-    }*/
+    }
 
     @GetMapping("/import/time")
     public CompletableFuture<ApiResponse<?>> getExperimentComparisonsByTime(
