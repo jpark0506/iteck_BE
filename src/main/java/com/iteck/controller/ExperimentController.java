@@ -3,6 +3,7 @@ package com.iteck.controller;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.iteck.dto.ApiResponse;
+import com.iteck.dto.FactorsDto;
 import com.iteck.dto.MetaDto;
 import com.iteck.service.ExperimentService;
 
@@ -42,21 +43,37 @@ public class ExperimentController {
             }
         });
     }
-    // NOTICE : 제 로컬 환경에서는 MetaDto 형식으로 받게끔 js 코드를 구현해놔서 이렇게 변경했습니다!
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "실험 파일 업로드", description = "엑셀 파일 형식으로 된 실험 데이터 업로드。")
+    @Operation(summary = "실험 파일 업로드", description = "엑셀 파일 형식으로 된 실험 데이터 업로드.")
     public ApiResponse<?> uploadExperiment(
-            @RequestPart("metaDto") MetaDto metaDto,   // JSON 데이터
+            @RequestPart("factorDto") FactorsDto factorsDto,   // JSON 데이터
             @RequestPart("file") MultipartFile file    // 파일
     ) throws IOException {
-        return experimentService.createExperimentData(file, metaDto);
+        return experimentService.createExperimentData(file, factorsDto);
+    }
+    @PostMapping("/meta/post")
+    @Operation(summary = "사용자가 등록한 실험의 부가정보(제목, 메모, 날짜)를 저장.")
+    public ApiResponse<?> postExperimentMetas(@RequestBody MetaDto metaDto) {
+        return experimentService.createMeta(metaDto);
+    }
+    @GetMapping("/meta/get")
+    @Operation(summary = "사용자가 등록한 실험의 부가정보(제목, 메모, 날짜)를 반환.", description = "사용자명을 기준으로 실험 부가정보를 불러와 반환.")
+    public ApiResponse<?> getExperimentMetas(@RequestParam String userName) {
+        return experimentService.getExperimentMetasByUser(userName);
     }
 
-    @DeleteMapping(value = "/delete")
-    @Operation(summary = "실험 데이터 삭제", description = "삭제 파일에 포함된 데이터들을 DB에서 찾아 삭제")
-    public ApiResponse<Void> deleteExperiment(@RequestParam String title) throws IOException {
-        return experimentService.deleteExperimentData(title);
+    @GetMapping("/upload/read")
+    @Operation(summary = "업로드한 파일 조회", description = "사용자명을 기준으로 업로드한 파일명과 등록할 때 입력한 인자값을 불러와 반환. 단, 현재는 실험의 고유 id인 experiment_id를 불러오도록 구현.")
+    public ApiResponse<?> getUploadedFileDatas(@RequestParam String userName) {
+        return experimentService.fetchUploadedFileDatas(userName);
     }
+
+
+//    @DeleteMapping(value = "/delete")
+//    @Operation(summary = "실험 데이터 삭제", description = "삭제 파일에 포함된 데이터들을 DB에서 찾아 삭제")
+//    public ApiResponse<Void> deleteExperiment(@RequestParam String title) throws IOException {
+//        return experimentService.deleteExperimentData(title);
+//    }
 
     @GetMapping("/import/time")
     @Operation(summary = "시간-전류, 시간-전압 그래프 플롯에 필요한 데이터 반환", description = "kind(활물질, 전도체 등), fixed(고정인자 이름, CMC), yFactor(전류 or 전압)을 클라이언트에서 받아 충족하는 데이터 반환.")
@@ -85,15 +102,9 @@ public class ExperimentController {
        return experimentService.getVoltageListByFixedFactor(factorKind, fixedFactor);
    }
 
-   @GetMapping("/detect")
-   @Operation(summary = "이상치 탐지하여 실험데이터와 같이 반환", description = "파일을 클릭하면 그 이름을 기준으로 데이터를 불러와 이상치를 탐지하고 반환.")
-   public ApiResponse<?> getOutliers(@RequestParam String title) {
-        return experimentService.fetchExperiementWithOutliers(title);
-    }
-    @GetMapping("/meta")
-
-    @Operation(summary = "사용자가 등록한 실험의 부가정보(제목, 메모, 인자 등)를 반환.", description = "사용자명을 기준으로 실험 부가정보를 불러와 반환.")
-    public ApiResponse<?> getExperimentMetas(@RequestParam String userName) {
-        return experimentService.getExperimentMetasByUser(userName);
-    }
+//   @GetMapping("/detect")
+//   @Operation(summary = "이상치 탐지하여 실험데이터와 같이 반환", description = "파일을 클릭하면 그 이름을 기준으로 데이터를 불러와 이상치를 탐지하고 반환.")
+//   public ApiResponse<?> getOutliers(@RequestParam String title) {
+//        return experimentService.fetchExperiementWithOutliers(title);
+//    }
 }
