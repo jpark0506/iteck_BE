@@ -1,13 +1,11 @@
 package com.iteck.service;
 
 import com.iteck.domain.CycleData;
-import com.iteck.domain.ExperimentMeta;
+import com.iteck.domain.Factor;
+import com.iteck.domain.Meta;
 import com.iteck.domain.TimeData;
 import com.iteck.dto.*;
-import com.iteck.repository.CycleDataRepository;
-import com.iteck.repository.ExperimentMetaCustomRepository;
-import com.iteck.repository.ExperimentMetaRepository;
-import com.iteck.repository.TimeDataRepository;
+import com.iteck.repository.*;
 import com.iteck.util.ApiStatus;
 import lombok.AllArgsConstructor;
 import org.springframework.scheduling.annotation.Async;
@@ -20,6 +18,7 @@ import java.io.InputStreamReader;
 import java.time.*;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import static com.iteck.util.FileUtil.*;
 
@@ -27,13 +26,14 @@ import static com.iteck.util.FileUtil.*;
 @Service
 @AllArgsConstructor
 public class ExperimentService {
-    private final ExperimentMetaRepository experimentMetaRepository;
+    private final FactorRepository factorRepository;
     private final TimeDataRepository timeDataRepository;
     private final CycleDataRepository cycleDataRepository;
-    private final ExperimentMetaCustomRepository experimentMetaCustomRepository;
+    private final FactorCustomRepository factorCustomRepository;
+    private final MetaRepository metaRepository;
 
 
-    public ApiResponse<?>  createExperimentData(MultipartFile file, MetaDto metaDto) throws IOException {
+    public ApiResponse<?>  createExperimentData(MultipartFile file, FactorsDto factorsDto) throws IOException {
         String experimentId = UUID.randomUUID().toString();
 
         // CSV 파일 여부 확인
@@ -42,15 +42,12 @@ public class ExperimentService {
         }
 
         // ExperimentMeta 생성 후 저장
-        ExperimentMeta experimentMeta = ExperimentMeta.builder()
+        Factor factor = Factor.builder()
                 .experimentId(experimentId)
-                .userName(metaDto.getUserName())
-                .title(metaDto.getTitle())
-                .memo(metaDto.getMemo())
-                .factors(metaDto.getFactors())
-                .expDate(ZonedDateTime.now(ZoneId.of("Asia/Seoul")).toInstant())
+                .userName(factorsDto.getUserName())
+                .factors(factorsDto.getFactors())
                 .build();
-        experimentMetaRepository.save(experimentMeta);
+        factorRepository.save(factor);
 
         // 데이터 처리를 위한 BufferedReader 생성
         BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()));
@@ -145,14 +142,28 @@ public class ExperimentService {
         cycleDataRepository.save(cycleData);
     }
 
-
-
-
     public ApiResponse<?> getExperimentMetasByUser(String userName) {
-        List<ExperimentMeta> experimentMetas = experimentMetaRepository.findByUserName(userName);
-        return ApiResponse.fromResultStatus(ApiStatus.SUC_EXPERIMENT_READ, experimentMetas);
+        List<MetaDto> metaDtos = metaRepository.findAllByUserName(userName)
+                .stream()
+                .map(MetaDto::new)
+                .toList();
+        return ApiResponse.fromResultStatus(ApiStatus.SUC_EXPERIMENT_READ, metaDtos);
     }
 
+    public ApiResponse<?> createMeta(MetaDto metaDto) {
+        Meta meta = Meta.builder()
+                .title(metaDto.getTitle())
+                .memo(metaDto.getMemo())
+                .userName(metaDto.getUserName())
+                .regDate(ZonedDateTime.now(ZoneId.of("Asia/Seoul")).toInstant())
+                .build();
+        metaRepository.save(meta);
+        return ApiResponse.fromResultStatus(ApiStatus.SUC_EXPERIMENT_READ, meta);
+    }
+
+    public ApiResponse<?> fetchUploadedFileDatas(String userName){
+        return ApiResponse.fromResultStatus(ApiStatus.SUC_FACTOR_READ, factorRepository.findByUserName(userName));
+    }
     @Async
     public CompletableFuture<List<CycleData>> getCyclesAsync(String experimentId) {
         List<CycleData> cycleDatas = cycleDataRepository.findAllByExperimentId(experimentId);
@@ -279,9 +290,9 @@ public class ExperimentService {
     @Async
     public CompletableFuture<ApiResponse<?>> getTimeListByFixedFactor(String factorKind, String fixedFactor, String yFactor) {
         ApiResponse<?> response;
-        List<ExperimentMeta> experimentMetas = experimentMetaCustomRepository.findByFactorKeyExists(factorKind, fixedFactor);
-        List<String> experimentIds = experimentMetas.stream()
-                .map(ExperimentMeta::getExperimentId)
+        List<Factor> factors = factorCustomRepository.findByFactorKeyExists(factorKind, fixedFactor);
+        List<String> experimentIds = factors.stream()
+                .map(Factor::getExperimentId)
                 .toList();
 
         // CompletableFuture로 비동기 처리하여 각 experimentId의 TimeData를 가져옴
@@ -303,7 +314,7 @@ public class ExperimentService {
 
 
         if (yFactor.equals("current")) {
-            List<ResponseDto.TimeWithCurrent> timeWithCurrentList = experimentMetas.stream()
+            List<ResponseDto.TimeWithCurrent> timeWithCurrentList = factors.stream()
                     .map(meta -> new ResponseDto.TimeWithCurrent(
                             meta,
                             Collections.singletonMap("time: " + meta.getExperimentId(),
@@ -312,7 +323,7 @@ public class ExperimentService {
                     .toList();
             response = ApiResponse.fromResultStatus(ApiStatus.SUC_EXPERIMENT_READ, timeWithCurrentList);
         } else if (yFactor.equals("voltage")) {
-            List<ResponseDto.TimeWithVoltage> timeWithVoltageList = experimentMetas.stream()
+            List<ResponseDto.TimeWithVoltage> timeWithVoltageList = factors.stream()
                     .map(meta -> new ResponseDto.TimeWithVoltage(
                             meta,
                             Collections.singletonMap("time: " + meta.getExperimentId(),
@@ -329,9 +340,9 @@ public class ExperimentService {
     @Async
     public CompletableFuture<ApiResponse<?>> getVoltageListByFixedFactor(String factorKind, String fixedFactor) {
         ApiResponse<?> response;
-        List<ExperimentMeta> experimentMetas = experimentMetaCustomRepository.findByFactorKeyExists(factorKind, fixedFactor);
-        List<String> experimentIds = experimentMetas.stream()
-                .map(ExperimentMeta::getExperimentId)
+        List<Factor> factors = factorCustomRepository.findByFactorKeyExists(factorKind, fixedFactor);
+        List<String> experimentIds = factors.stream()
+                .map(Factor::getExperimentId)
                 .toList();
 
         // CompletableFuture로 비동기 처리하여 각 experimentId의 TimeData를 가져옴
@@ -350,7 +361,7 @@ public class ExperimentService {
                 // 예외 처리
             }
         }
-        List<ResponseDto.VoltageWithDQmDv> voltageWithDQmDvList = experimentMetas.stream()
+        List<ResponseDto.VoltageWithDQmDv> voltageWithDQmDvList = factors.stream()
                 .map(meta -> new ResponseDto.VoltageWithDQmDv(
                         meta,
                         Collections.singletonMap("experiment: " + meta.getExperimentId(),
@@ -365,9 +376,9 @@ public class ExperimentService {
     @Async
     public CompletableFuture<ApiResponse<?>> getCycleListByFixedFactor(String factorKind, String fixedFactor, String yFactor){
         ApiResponse<?> response;
-        List<ExperimentMeta> experimentMetas = experimentMetaCustomRepository.findByFactorKeyExists(factorKind, fixedFactor);
-        List<String> experimentIds = experimentMetas.stream()
-                .map(ExperimentMeta::getExperimentId)
+        List<Factor> factors = factorCustomRepository.findByFactorKeyExists(factorKind, fixedFactor);
+        List<String> experimentIds = factors.stream()
+                .map(Factor::getExperimentId)
                 .toList();
 
         List<CompletableFuture<List<?>>> futureCycleDtos = experimentIds.stream()
@@ -384,7 +395,7 @@ public class ExperimentService {
             }
         }
         if (yFactor.equals("dchgToChg")) {
-            List<ResponseDto.CycleDchgToChg> cycleDchgToChgList = experimentMetas.stream()
+            List<ResponseDto.CycleDchgToChg> cycleDchgToChgList = factors.stream()
                     .map(meta -> new ResponseDto.CycleDchgToChg(
                             meta,
                             Collections.singletonMap("time: " + meta.getExperimentId(),
@@ -393,7 +404,7 @@ public class ExperimentService {
                     .toList();
             response = ApiResponse.fromResultStatus(ApiStatus.SUC_EXPERIMENT_READ, cycleDchgToChgList);
         } else if (yFactor.equals("chgToDchg")) {
-            List<ResponseDto.CycleChgToDchg> cycleChgToDchgList = experimentMetas.stream()
+            List<ResponseDto.CycleChgToDchg> cycleChgToDchgList = factors.stream()
                     .map(meta -> new ResponseDto.CycleChgToDchg(
                             meta,
                             Collections.singletonMap("time: " + meta.getExperimentId(),
@@ -407,35 +418,35 @@ public class ExperimentService {
         return CompletableFuture.completedFuture(response);
     }
 
-    public ApiResponse<?> fetchExperiementWithOutliers(String title) {
-        // ExperimentMeta 및 CycleData 조회
-        ExperimentMeta experimentMeta = experimentMetaRepository.findFirstByTitle(title);
-        if (experimentMeta == null) {
-            return ApiResponse.fromResultStatus(ApiStatus.NOT_FOUND); // 적절한 상태 반환
-        }
-
-        String experimentId = experimentMeta.getExperimentId();
-
-        // 비동기적으로 getOutliersAsync 호출
-        CompletableFuture<List<?>> futureOutliers = getOutliersAsync(experimentId);
-
-        try {
-            // 비동기 결과 기다리기
-            List<CycleDto.withOutlier> outliers = (List<CycleDto.withOutlier>) futureOutliers.get();
-
-            // 성공 응답에 이상치 리스트 포함하여 반환
-            return ApiResponse.fromResultStatus(ApiStatus.SUC_FACTOR_CREATE, outliers);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ApiResponse.fromResultStatus(ApiStatus.INTERNAL_SERVER_ERROR); // 예외 발생 시 에러 상태 반환
-        }
-    }
-    public ApiResponse<Void> deleteExperimentData(String title){
-        experimentMetaRepository.findAllByTitle(title).forEach(e -> {
-                    timeDataRepository.deleteByExperimentId(e.getExperimentId());
-                    cycleDataRepository.deleteByExperimentId(e.getExperimentId());
-                    experimentMetaRepository.deleteByExperimentId(e.getExperimentId());}
-        );
-        return ApiResponse.fromResultStatus(ApiStatus.SUC_EXPERIMENT_DELETE);
-    }
+//    public ApiResponse<?> fetchExperiementWithOutliers(String title) {
+//        // ExperimentMeta 및 CycleData 조회
+//        Factor factor = factorRepository.findFirstByTitle(title);
+//        if (factor == null) {
+//            return ApiResponse.fromResultStatus(ApiStatus.NOT_FOUND); // 적절한 상태 반환
+//        }
+//
+//        String experimentId = factor.getExperimentId();
+//
+//        // 비동기적으로 getOutliersAsync 호출
+//        CompletableFuture<List<?>> futureOutliers = getOutliersAsync(experimentId);
+//
+//        try {
+//            // 비동기 결과 기다리기
+//            List<CycleDto.withOutlier> outliers = (List<CycleDto.withOutlier>) futureOutliers.get();
+//
+//            // 성공 응답에 이상치 리스트 포함하여 반환
+//            return ApiResponse.fromResultStatus(ApiStatus.SUC_FACTOR_CREATE, outliers);
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//            return ApiResponse.fromResultStatus(ApiStatus.INTERNAL_SERVER_ERROR); // 예외 발생 시 에러 상태 반환
+//        }
+//    }
+//    public ApiResponse<Void> deleteExperimentData(String title){
+//        factorRepository.findAllByTitle(title).forEach(e -> {
+//                    timeDataRepository.deleteByExperimentId(e.getExperimentId());
+//                    cycleDataRepository.deleteByExperimentId(e.getExperimentId());
+//                    factorRepository.deleteByExperimentId(e.getExperimentId());}
+//        );
+//        return ApiResponse.fromResultStatus(ApiStatus.SUC_EXPERIMENT_DELETE);
+//    }
 }
