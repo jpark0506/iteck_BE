@@ -1,5 +1,6 @@
 package com.iteck.domain;
 
+import java.util.Date;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -21,4 +22,5 @@ public class Meta {
     private String title;
     private String memo;
     private Instant regDate;
+    private Date expDate;
 }
