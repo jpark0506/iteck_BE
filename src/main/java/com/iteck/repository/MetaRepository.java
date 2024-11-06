@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface MetaRepository extends MongoRepository<Meta, String> {
     public List<Meta> findAllByUserName(String username);
+
 }
