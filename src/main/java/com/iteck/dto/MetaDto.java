@@ -14,11 +14,13 @@ import java.util.Map;
 @NoArgsConstructor
 @AllArgsConstructor
 public class MetaDto {
+    private String id;
     private String userName;
     private String title;
     private String memo;
 
     public MetaDto(Meta meta) {
+        this.id = meta.getId();
         this.userName = meta.getUserName();
         this.title = meta.getTitle();
         this.memo = meta.getMemo();
