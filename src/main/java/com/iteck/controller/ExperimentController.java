@@ -11,7 +11,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import lombok.AllArgsConstructor;
 
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -63,9 +62,16 @@ public class ExperimentController {
         return experimentService.createMeta(metaDto);
     }
     @GetMapping("/meta/get")
-    @Operation(summary = "사용자가 등록한 실험의 부가정보(제목, 메모, 날짜)를 반환.", description = "사용자명을 기준으로 실험 부가정보를 불러와 반환.")
+    @Operation(summary = "사용자가 등록한 실험의 부가정보(제목, 메모, 날짜) 리스트를 반환.", description = "사용자명을 기준으로 실험 부가정보를 불러와 반환.")
     public ApiResponse<?> getExperimentMetas(@RequestParam String userName) {
         return experimentService.getExperimentMetasByUser(userName);
+    }
+
+    @GetMapping("/meta/get/{metaId}")
+    @Operation(summary = "사용자가 등록한 실험의 부가정보(제목, 메모, 날짜)를 반환.", description = "ID를 기준으로 실험 부가정보를 불러와 반환.")
+    public ApiResponse<?> getExperimentMetasWithId(
+        @PathVariable String metaId) {
+        return experimentService.getExperimentMetaWithId(metaId);
     }
 
     @GetMapping("/upload/read")

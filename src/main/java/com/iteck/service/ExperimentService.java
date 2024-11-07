@@ -149,11 +149,25 @@ public class ExperimentService {
         return ApiResponse.fromResultStatus(ApiStatus.SUC_EXPERIMENT_READ, metaDtos);
     }
 
+    public ApiResponse<?> getExperimentMetaWithId(String metaId) {
+
+        Optional<Meta> meta =  metaRepository.findById(metaId);
+
+        if(meta.isEmpty()){
+            return ApiResponse.fromResultStatus(ApiStatus.BAD_REQUEST);
+        }
+
+        return ApiResponse.fromResultStatus(ApiStatus.SUC_EXPERIMENT_READ,
+            meta
+        );
+    }
+
     public ApiResponse<?> createMeta(MetaDto metaDto) {
         Meta meta = Meta.builder()
                 .title(metaDto.getTitle())
                 .memo(metaDto.getMemo())
                 .userName(metaDto.getUserName())
+                .expDate(metaDto.getExpDate())
                 .regDate(ZonedDateTime.now(ZoneId.of("Asia/Seoul")).toInstant())
                 .build();
         metaRepository.save(meta);
