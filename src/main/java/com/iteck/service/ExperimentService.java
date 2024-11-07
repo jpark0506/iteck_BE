@@ -33,13 +33,14 @@ public class ExperimentService {
     private final MetaRepository metaRepository;
 
 
-    public ApiResponse<?>  createExperimentData(MultipartFile file, FactorsDto factorsDto) throws IOException {
+    public ApiResponse<?> createExperimentData(MultipartFile file, FactorsDto factorsDto) throws IOException {
         String experimentId = UUID.randomUUID().toString();
 
         // CSV 파일 여부 확인
         if (isExcel(file)) {
             return ApiResponse.fromResultStatus(ApiStatus.BAD_REQUEST);
         }
+
         // ExperimentMeta 생성 후 저장
         Factor factor = Factor.builder()
                 .experimentId(experimentId)
@@ -64,7 +65,6 @@ public class ExperimentService {
         // Cycle Index 열의 인덱스를 저장할 리스트
         List<Integer> cycleIndexPositions = new ArrayList<>();
 
-        // 데이터를 읽고 저장
         // 데이터를 읽고 저장
         while ((line = reader.readLine()) != null) {
             String[] data = line.split(",");
@@ -111,7 +111,6 @@ public class ExperimentService {
         if (!cycleExpSpecBuffer.isEmpty()) {
             saveCycleDataChunkAsync(experimentId, cycleDataChunkId, cycleExpSpecBuffer);
         }
-
 
         return ApiResponse.fromResultStatus(ApiStatus.SUC_EXPERIMENT_CREATE);
     }
@@ -488,12 +487,12 @@ public class ExperimentService {
 
         return CompletableFuture.completedFuture(response);
     }
-//    public ApiResponse<Void> deleteExperimentData(String title){
-//        factorRepository.findAllByTitle(title).forEach(e -> {
-//                    timeDataRepository.deleteByExperimentId(e.getExperimentId());
-//                    cycleDataRepository.deleteByExperimentId(e.getExperimentId());
-//                    factorRepository.deleteByExperimentId(e.getExperimentId());}
-//        );
-//        return ApiResponse.fromResultStatus(ApiStatus.SUC_EXPERIMENT_DELETE);
-//    }
+    public ApiResponse<Void> deleteExperimentData(String experimentId){
+        factorRepository.findAllByExperimentId(experimentId).forEach(e -> {
+                    timeDataRepository.deleteByExperimentId(e.getExperimentId());
+                    cycleDataRepository.deleteByExperimentId(e.getExperimentId());
+                    factorRepository.deleteByExperimentId(e.getExperimentId());}
+        );
+        return ApiResponse.fromResultStatus(ApiStatus.SUC_EXPERIMENT_DELETE);
+    }
 }

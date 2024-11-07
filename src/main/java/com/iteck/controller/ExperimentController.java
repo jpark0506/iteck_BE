@@ -7,6 +7,7 @@ import com.iteck.dto.FactorsDto;
 import com.iteck.dto.MetaDto;
 import com.iteck.service.ExperimentService;
 
+import com.iteck.util.ApiStatus;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.AllArgsConstructor;
 
@@ -49,12 +50,24 @@ public class ExperimentController {
         });
     }
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "실험 파일 업로드", description = "엑셀 파일 형식으로 된 실험 데이터 업로드.")
-    public ApiResponse<?> uploadExperiment(
-            @RequestPart("factorDto") FactorsDto factorsDto,   // JSON 데이터
-            @RequestPart("file") MultipartFile file    // 파일
+    @Operation(summary = "여러 실험 파일 업로드", description = "엑셀 파일 형식으로 된 여러 실험 데이터를 업로드.")
+    public ApiResponse<?> uploadMultipleExperiments(
+            @RequestPart("factorDto") List<FactorsDto> factorsDtoList, // JSON 데이터 리스트
+            @RequestPart("file") List<MultipartFile> files             // 파일 리스트
     ) throws IOException {
-        return experimentService.createExperimentData(file, factorsDto);
+        if (factorsDtoList.size() != files.size()) {
+            return ApiResponse.fromResultStatus(ApiStatus.BAD_REQUEST);
+        }
+
+        for (int i = 0; i < files.size(); i++) {
+            MultipartFile file = files.get(i);
+            FactorsDto factorsDto = factorsDtoList.get(i);
+
+            // 각 파일과 매핑된 factorDto에 대해 실험 데이터 생성
+            experimentService.createExperimentData(file, factorsDto);
+        }
+
+        return ApiResponse.fromResultStatus(ApiStatus.SUC_EXPERIMENT_CREATE);
     }
     @PostMapping("/meta/post")
     @Operation(summary = "사용자가 등록한 실험의 부가정보(제목, 메모, 날짜)를 저장.")
@@ -81,11 +94,11 @@ public class ExperimentController {
     }
 
 
-//    @DeleteMapping(value = "/delete")
-//    @Operation(summary = "실험 데이터 삭제", description = "삭제 파일에 포함된 데이터들을 DB에서 찾아 삭제")
-//    public ApiResponse<Void> deleteExperiment(@RequestParam String title) throws IOException {
-//        return experimentService.deleteExperimentData(title);
-//    }
+    @DeleteMapping(value = "/delete")
+    @Operation(summary = "실험 데이터 삭제", description = "실험 id값을 기준으로 데이터들을 DB에서 찾아 삭제")
+    public ApiResponse<Void> deleteExperiment(@RequestParam String experimentId) throws IOException {
+        return experimentService.deleteExperimentData(experimentId);
+    }
 
     @GetMapping("/import/time")
     @Operation(summary = "시간-전류, 시간-전압 그래프 플롯에 필요한 데이터 반환", description = "kind(활물질, 전도체 등), fixed(고정인자 이름, CMC), yFactor(전류 or 전압)을 클라이언트에서 받아 충족하는 데이터 반환.")
@@ -120,7 +133,7 @@ public class ExperimentController {
         return experimentService.getCycleListByFixedFactor(parsedKinds, parsedAmounts, yFactor);
     }
     @GetMapping("/import/voltage")
-    @Operation(summary = "전압-dQ/dV 그래프 플롯에 필요한 데이터 반환", description = "kind(활물질, 전도체 등), fixed(고정인자 이름, CMC)를 클라이언트에서 받아 충족하는 데이터 반환.")
+    @Operation(summary = "전압-dQ/dV 그래프 플롯에 필요한 데이터 반환", description = "고정인자를 1개 이상 입력 받고 그 값들을 갖는 데이터를 불러와  반환.")
     public CompletableFuture<ApiResponse<?>> getExperimentComparisonsByVoltage(
             @RequestParam(value = "factorKind", required = false) List<String> factorKind,
             @RequestParam(value = "factorAmount", required = false) List<String> factorAmount) {
@@ -134,7 +147,7 @@ public class ExperimentController {
 
 
    @GetMapping("/detect")
-   @Operation(summary = "이상치 탐지하여 실험데이터와 같이 반환", description = "파일을 클릭하면 그 이름을 기준으로 데이터를 불러와 이상치를 탐지하고 반환.")
+   @Operation(summary = "이상치 탐지하여 실험데이터와 같이 반환", description = "고정인자를 1개 이상 입력 받고 그 값들을 갖는 데이터를 불러와 이상치를 탐지하고 반환.")
    public CompletableFuture<ApiResponse<?>> getOutliers(
            @RequestParam(value = "factorKind", required = false) List<String> factorKind,
            @RequestParam(value = "factorAmount", required = false) List<String> factorAmount) {

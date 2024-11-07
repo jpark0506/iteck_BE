@@ -10,5 +10,6 @@ import java.util.List;
 public interface FactorRepository extends MongoRepository<Factor, String> {
     void deleteByExperimentId(String experimentId);
     List<Factor> findByUserName(String userName);
+    List<Factor> findAllByExperimentId(String experimentId);
 
 }
