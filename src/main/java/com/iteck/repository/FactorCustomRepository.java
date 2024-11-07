@@ -2,6 +2,7 @@ package com.iteck.repository;
 
 import com.iteck.domain.Factor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -26,7 +27,7 @@ public class FactorCustomRepository {
         return mongoTemplate.find(query, Factor.class);
     }
 
-    public List<Factor> findByMultipleKindsAndCriteria(List<Map<String, String>> kindKeyMap, List<Map<String, String>> kindValueMap) {
+    public List<Factor> findByMultipleKindsAndCriteria(List<Map<String, String>> kindKeyMap, List<Map<String, String>> kindValueMap, String variable) {
         if ((kindKeyMap == null || kindKeyMap.isEmpty()) && (kindValueMap == null || kindValueMap.isEmpty())) {
             System.out.println("Both kindKeyMap and kindValueMap are empty or null. Returning empty result.");
             return Collections.emptyList(); // 빈 리스트 반환
@@ -89,7 +90,27 @@ public class FactorCustomRepository {
         // 전체 조건을 AND로 결합
         Criteria combinedCriteria = new Criteria().andOperator(kindCriteriaList.toArray(new Criteria[0]));
         Query query = new Query(combinedCriteria);
+        if (variable != null) {
+            String[] variableParts = variable.split(":");
+            if (variableParts.length >= 2) {
+                String type = variableParts[0];
+                String kind = variableParts[1];
+                String sortOrder = (variableParts.length == 3 && "desc".equalsIgnoreCase(variableParts[2])) ? "desc" : "asc";
+                String fieldPath = "factors." + kind + ".details";
 
+                if ("factorKind".equalsIgnoreCase(type)) {
+                    query.with(Sort.by("desc".equals(sortOrder) ? Sort.Order.desc(fieldPath) : Sort.Order.asc(fieldPath))); // 각 details의 키를 기준으로 정렬
+                    System.out.println("Added sort by kind for details in: " + fieldPath + " with order: " + sortOrder);
+                } else if ("factorAmount".equalsIgnoreCase(type)) {
+                    query.with(Sort.by("desc".equals(sortOrder) ? Sort.Order.desc(fieldPath + ".*") : Sort.Order.asc(fieldPath + ".*"))); // 각 details의 값을 기준으로 정렬
+                    System.out.println("Added sort by amount for details in: " + fieldPath + " with order: " + sortOrder);
+                } else {
+                    System.out.println("Invalid variable type. Expected 'factorKind' or 'factorAmount'.");
+                }
+            } else {
+                System.out.println("Invalid variable format. Expected 'factorKind:kind:asc/desc' or 'factorAmount:kind:asc/desc' format.");
+            }
+        }
         System.out.println("Generated query: " + query.toString());
 
         return mongoTemplate.find(query, Factor.class);
