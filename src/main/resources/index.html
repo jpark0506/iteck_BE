@@ -1,46 +1,111 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>실험 데이터 플로팅</title>
-    <!-- Chart.js 라이브러리 추가 -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Battery Simulation Results</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <style>
-        /* 차트 캔버스 크기 설정 */
-        #experimentChart {
-            width: 80%;
-            height: 400px;
+        .experiment-button {
+            margin: 5px;
+            padding: 10px;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
         }
     </style>
 </head>
 <body>
-<h1>실험 데이터 플로팅</h1>
-<!-- Fixed Factor 입력 필드 -->
-<label for="fixedFactor">Fixed Factor:</label>
-<input type="text" id="fixedFactor" placeholder="Fixed Factor 입력">
+<h1>Battery Simulation Results</h1>
+<div id="chart"></div>
+<div id="experimentButtons"></div>
 
-<!-- 시간 데이터 로드 버튼 -->
-<button id="loadTimeDataBtn">시간 데이터 로드</button>
-<!-- 사이클 데이터 로드 버튼 -->
-<button id="loadCycleDataBtn">사이클 데이터 로드</button>
+<script>
+    let allData = []; // 모든 실험 데이터를 저장
 
-<!-- 그래프 타입 선택 드롭다운 -->
-<label for="graphType">그래프 선택:</label>
-<select id="graphType">
-    <option value="시간-전압 그래프">시간-전압 그래프</option>
-    <option value="시간-전류 그래프">시간-전류 그래프</option>
-    <option value="시간-dQ/dV 그래프">시간-dQ/dV 그래프</option>
-    <option value="사이클-용량 그래프">사이클-용량 그래프</option>
-    <option value="사이클-쿨롱효율 그래프">사이클-쿨롱효율 그래프</option>
-</select>
+    // 데이터를 서버에서 가져오고 첫 번째 실험을 시각화
+    async function fetchData() {
+        try {
+            const response = await fetch("http://34.64.87.212:8080/exp/import/time?yFactor=voltage&kind=활물질&fixed=ABC");
+            const jsonData = await response.json();
 
-<!-- 그래프를 표시할 컨테이너 -->
-<div id="graphContainer"></div>
+            // 전체 실험 데이터를 저장
+            allData = jsonData.data;
 
-<!-- 차트를 표시할 캔버스 -->
-<canvas id="experimentChart"></canvas>
+            // 실험 데이터마다 버튼을 생성
+            createExperimentButtons();
 
-<!-- JavaScript 파일 연결 -->
-<script src="script.js"></script>
+            // 첫 번째 실험 데이터 시각화
+            visualizeData(allData[0]);
+        } catch (error) {
+            console.error("Error fetching data:", error);
+        }
+    }
+
+    // 실험 데이터에 따른 버튼 생성
+    function createExperimentButtons() {
+        const buttonContainer = document.getElementById("experimentButtons");
+        buttonContainer.innerHTML = ''; // 기존 버튼 초기화
+
+        allData.forEach((experiment, index) => {
+            const button = document.createElement("button");
+            button.className = "experiment-button";
+            button.textContent = experiment.meta.title; // 버튼에 제목 표시
+            button.style.backgroundColor = getRandomColor(); // 랜덤 색상 지정
+            button.onclick = () => visualizeData(experiment); // 클릭 시 해당 데이터로 그래프 업데이트
+            buttonContainer.appendChild(button);
+        });
+    }
+
+    // 무작위 색상 생성 함수
+    function getRandomColor() {
+        const letters = '0123456789ABCDEF';
+        let color = '#';
+        for (let i = 0; i < 6; i++) {
+            color += letters[Math.floor(Math.random() * 16)];
+        }
+        return color;
+    }
+
+    // 그래프에 데이터를 표시하는 함수
+    function visualizeData(experiment) {
+        const voltage = [];
+        const dqmdV = [];
+
+        // experiment 데이터의 voltage와 dqmdV를 배열에 저장
+        for (const key in experiment.timeDatas) {
+            experiment.timeDatas[key].forEach(point => {
+                voltage.push(parseFloat(point.totalTime)); // 전압 데이터
+                dqmdV.push(parseFloat(point.voltage)); // dqmdV 데이터
+            });
+            break; // 첫 번째 experiment만 시각화
+        }
+
+        const trace = {
+            x: voltage,
+            y: dqmdV,
+            mode: 'lines+markers',
+            name: experiment.meta.title, // 범례에 제목을 표시
+        };
+
+        const layout = {
+            title: `Battery Simulation Results - ${experiment.meta.title}`,
+            xaxis: { title: 'Voltage (V)' },
+            yaxis: { title: 'dqmdV' },
+            hovermode: 'x unified'  // x축을 따라 모든 값들을 한눈에 표시
+        };
+
+        if (document.getElementById('chart').data) {
+            // 이미 그래프가 존재하면 업데이트
+            Plotly.react('chart', [trace], layout);
+        } else {
+            // 그래프가 없으면 새로 생성
+            Plotly.newPlot('chart', [trace], layout);
+        }
+    }
+
+    // 페이지 로드 시 첫 번째 실험 데이터를 불러옴
+    fetchData();
+</script>
 </body>
 </html>
