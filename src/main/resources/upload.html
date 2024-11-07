@@ -8,139 +8,149 @@
 <body>
 <h2>실험 데이터 입력</h2>
 
-<!-- 파일 업로드 -->
-<label for="experimentFile">실험 파일:</label>
-<input type="file" id="experimentFile"><br><br>
+<!-- 여러 파일 업로드 및 각 파일마다 인자 입력 -->
+<div id="fileContainer"></div>
 
-<!-- 사용자 정보 입력 -->
-<label for="userName">사용자명:</label>
-<input type="text" id="userName" placeholder="사용자명 입력"><br><br>
-
-<label for="title">실험 제목:</label>
-<input type="text" id="title" placeholder="실험 제목 입력"><br><br>
-
-<label for="memo">메모:</label>
-<textarea id="memo" placeholder="실험 메모 입력"></textarea><br><br>
-
-<!-- 실험 인자 추가 버튼 -->
-<button id="addParameterBtn">인자 추가</button>
-
-<!-- 실험 인자 입력 폼을 표시할 div -->
-<div id="parameterContainer"></div>
+<!-- 파일 추가 버튼 -->
+<button id="addFileBtn">파일 추가</button><br><br>
 
 <!-- 실험 저장 버튼 -->
 <button id="saveExperimentBtn">실험 저장</button>
 
 <script>
-    const addParameterBtn = document.getElementById('addParameterBtn');
-    const parameterContainer = document.getElementById('parameterContainer');
+    const fileContainer = document.getElementById('fileContainer');
+    const addFileBtn = document.getElementById('addFileBtn');
     const saveExperimentBtn = document.getElementById('saveExperimentBtn');
 
-    let parameterIndex = 0;  // 인자 입력 필드의 고유 ID를 생성하는 데 사용
+    let fileIndex = 0;  // 파일 및 입력 폼의 고유 ID를 생성하는 데 사용
 
-    // 실험 인자 추가 버튼 클릭 시 동적으로 입력 필드를 추가
-    addParameterBtn.onclick = function() {
-        parameterIndex++;
+    // 파일 추가 버튼 클릭 시 파일 및 인자 입력 폼 추가
+    addFileBtn.onclick = function() {
+        fileIndex++;
 
-        // 인자명, 인자의 양 입력 필드 생성
-        const parameterDiv = document.createElement('div');
-        parameterDiv.id = `parameter-${parameterIndex}`;
+        // 파일 업로드와 관련된 div 생성
+        const fileDiv = document.createElement('div');
+        fileDiv.id = `file-${fileIndex}`;
 
-        const kindLabel = document.createElement('label');
-        kindLabel.innerText = '인자 종류: ';
-        const kindInput = document.createElement('input');
-        kindInput.type = 'text';
-        kindInput.placeholder = '인자 종류 입력'; // 종류 입력 필드 추가
+        const fileLabel = document.createElement('label');
+        fileLabel.innerText = '실험 파일: ';
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
 
-        const nameLabel = document.createElement('label');
-        nameLabel.innerText = '인자명: ';
-        const nameInput = document.createElement('input');
-        nameInput.type = 'text';
-        nameInput.placeholder = '인자명 입력';
+        const userNameLabel = document.createElement('label');
+        userNameLabel.innerText = ' 사용자명: ';
+        const userNameInput = document.createElement('input');
+        userNameInput.type = 'text';
+        userNameInput.placeholder = '사용자명 입력';
 
-        const valueLabel = document.createElement('label');
-        valueLabel.innerText = ' 인자의 양: ';
-        const valueInput = document.createElement('input');
-        valueInput.type = 'number';
-        valueInput.placeholder = '인자 값 입력';
+        const addParameterBtn = document.createElement('button');
+        addParameterBtn.innerText = '인자 추가';
+        addParameterBtn.type = 'button'; // 폼 제출 방지
+        addParameterBtn.onclick = function() {
+            const parameterDiv = document.createElement('div');
+            parameterDiv.classList.add('parameter');
 
-        // 삭제 버튼
-        const removeBtn = document.createElement('button');
-        removeBtn.innerText = '삭제';
-        removeBtn.onclick = function() {
-            parameterContainer.removeChild(parameterDiv);
+            const kindLabel = document.createElement('label');
+            kindLabel.innerText = '인자 종류: ';
+            const kindInput = document.createElement('input');
+            kindInput.type = 'text';
+            kindInput.placeholder = '인자 종류 입력';
+
+            const nameLabel = document.createElement('label');
+            nameLabel.innerText = '인자명: ';
+            const nameInput = document.createElement('input');
+            nameInput.type = 'text';
+            nameInput.placeholder = '인자명 입력';
+
+            const valueLabel = document.createElement('label');
+            valueLabel.innerText = ' 인자의 양: ';
+            const valueInput = document.createElement('input');
+            valueInput.type = 'number';
+            valueInput.placeholder = '인자 값 입력';
+
+            // 삭제 버튼
+            const removeBtn = document.createElement('button');
+            removeBtn.innerText = '삭제';
+            removeBtn.type = 'button';
+            removeBtn.onclick = function() {
+                fileDiv.removeChild(parameterDiv);
+            };
+
+            parameterDiv.appendChild(kindLabel);
+            parameterDiv.appendChild(kindInput);
+            parameterDiv.appendChild(nameLabel);
+            parameterDiv.appendChild(nameInput);
+            parameterDiv.appendChild(valueLabel);
+            parameterDiv.appendChild(valueInput);
+            parameterDiv.appendChild(removeBtn);
+
+            fileDiv.appendChild(parameterDiv);
         };
 
-        // 생성된 요소들을 div에 추가
-        parameterDiv.appendChild(kindLabel);
-        parameterDiv.appendChild(kindInput);
-        parameterDiv.appendChild(nameLabel);
-        parameterDiv.appendChild(nameInput);
-        parameterDiv.appendChild(valueLabel);
-        parameterDiv.appendChild(valueInput);
-        parameterDiv.appendChild(removeBtn);
-
-        // parameterContainer에 인자 입력 div 추가
-        parameterContainer.appendChild(parameterDiv);
+        fileDiv.appendChild(fileLabel);
+        fileDiv.appendChild(fileInput);
+        fileDiv.appendChild(userNameLabel);
+        fileDiv.appendChild(userNameInput);
+        fileDiv.appendChild(addParameterBtn);
+        fileContainer.appendChild(fileDiv);
     };
 
     // 실험 저장 버튼 클릭 시 데이터를 서버로 전송
     saveExperimentBtn.onclick = function() {
-        // 파일 가져오기
-        const file = document.getElementById('experimentFile').files[0];
+        const formData = new FormData();
+        const factorDtoList = [];
+        const fileDivs = document.querySelectorAll('[id^="file-"]');
 
-        // 사용자 정보 가져오기
-        const userName = document.getElementById('userName').value;
-        const title = document.getElementById('title').value;
-        const memo = document.getElementById('memo').value;
+        fileDivs.forEach((fileDiv, index) => {
+            const fileInput = fileDiv.querySelector('input[type="file"]');
+            const file = fileInput.files[0];
+            const userNameInput = fileDiv.querySelector('input[type="text"]');
+            const userName = userNameInput.value;
 
-        const factors = {};
-        for (let i = 0; i < parameterIndex; i++) {
-            const paramDiv = document.getElementById(`parameter-${i + 1}`);
-            if (paramDiv) {
-                const kindInput = paramDiv.querySelector('input[type="text"]'); // 인자 종류
-                const nameInput = paramDiv.querySelector('input[type="text"]:nth-of-type(2)'); // 인자명
-                const quantityInput = paramDiv.querySelector('input[type="number"]'); // 인자 값
+            const parameters = fileDiv.querySelectorAll('.parameter');
+            const factors = {};
 
-                const kind = kindInput.value;    // 종류 (예: 활물질)
-                const name = nameInput.value;    // 이름 (예: ACB)
-                const quantity = quantityInput.value; // 값 (예: 10)
+            parameters.forEach(paramDiv => {
+                const kindInput = paramDiv.querySelector('input:nth-of-type(1)');
+                const nameInput = paramDiv.querySelector('input:nth-of-type(2)');
+                const valueInput = paramDiv.querySelector('input[type="number"]');
+
+                const kind = kindInput.value;
+                const name = nameInput.value;
+                const quantity = valueInput.value;
 
                 if (kind && name && quantity) {
                     if (!factors[kind]) {
-                        factors[kind] = { details: {} };  // FactorDetail 객체의 details 구조에 맞춤
+                        factors[kind] = { details: {} };
                     }
-                    factors[kind].details[name] = quantity;  // 각 인자 종류에 하위 키-값 쌍 추가
+                    factors[kind].details[name] = quantity;
                 }
+            });
+
+            if (file) {
+                formData.append("file", file); // 파일을 FormData에 추가
+                factorDtoList.push({
+                    userName: userName,
+                    factors: factors
+                });
             }
-        }
+        });
 
-        // FormData 생성 및 데이터 추가
-        const formData = new FormData();
-        if (file) {
-            formData.append("file", file);
-        }
-        formData.append("metaDto", new Blob([JSON.stringify({
-            userName: userName,
-            title: title,
-            memo: memo,
-            factors: factors
-        })], { type: "application/json" }));
-
-
+        // factorDtoList를 JSON 문자열로 Blob을 만들어 FormData에 추가
+        formData.append("factorDto", new Blob([JSON.stringify(factorDtoList)], { type: "application/json" }));
 
         // 서버로 POST 요청 전송
         fetch('http://localhost:8080/exp/upload', {
             method: 'POST',
-            body: formData  // Content-Type 헤더는 설정하지 않음
+            body: formData
         }).then(response => response.json())
           .then(result => {
               console.log('서버 응답:', result);
-              alert('실험이 성공적으로 저장되었습니다!');
+              alert('파일이 성공적으로 저장되었습니다!');
           })
           .catch(error => {
-              console.error('실험 저장 중 오류 발생:', error);
-              alert('실험 저장 중 오류가 발생했습니다.');
+              console.error('파일 저장 중 오류 발생:', error);
+              alert('파일 저장 중 오류가 발생했습니다.');
           });
     };
 </script>

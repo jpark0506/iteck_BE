@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meta 정보 입력</title>
+</head>
+<body>
+<h2>Meta 정보 입력</h2>
+<form id="metaForm">
+    <label for="userName">사용자 이름:</label>
+    <input type="text" id="userName" name="userName" required><br><br>
+
+    <label for="title">제목:</label>
+    <input type="text" id="title" name="title" required><br><br>
+
+    <label for="memo">메모:</label>
+    <textarea id="memo" name="memo" required></textarea><br><br>
+
+    <button type="submit">전송</button>
+</form>
+
+<script>
+    document.getElementById("metaForm").addEventListener("submit", async function(event) {
+        event.preventDefault();
+
+        const metaDto = {
+            userName: document.getElementById("userName").value,
+            title: document.getElementById("title").value,
+            memo: document.getElementById("memo").value
+        };
+
+        try {
+            const response = await fetch("http://localhost:8080/exp/meta/post", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(metaDto)
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                alert("Meta 정보가 성공적으로 전송되었습니다.");
+                console.log("Response:", result);
+            } else {
+                alert("전송 중 오류가 발생했습니다.");
+                console.error("Error:", response.statusText);
+            }
+        } catch (error) {
+            alert("전송 중 오류가 발생했습니다.");
+            console.error("Error:", error);
+        }
+    });
+</script>
+</body>
+</html>
