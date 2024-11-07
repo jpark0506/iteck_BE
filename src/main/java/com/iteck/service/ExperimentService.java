@@ -40,7 +40,6 @@ public class ExperimentService {
         if (isExcel(file)) {
             return ApiResponse.fromResultStatus(ApiStatus.BAD_REQUEST);
         }
-
         // ExperimentMeta 생성 후 저장
         Factor factor = Factor.builder()
                 .experimentId(experimentId)
@@ -187,6 +186,7 @@ public class ExperimentService {
     // 1. getTimesAsync 메서드: yFactor에 따라 명확한 타입 반환
     @Async
     private CompletableFuture<List<?>> getTimesAsync(String experimentId, String yFactor) {
+        System.out.println(experimentId);
         return CompletableFuture.supplyAsync(() -> {
             List<TimeData> timeDataList = timeDataRepository.findByExperimentId(experimentId);
 
@@ -229,9 +229,11 @@ public class ExperimentService {
     private CompletableFuture<List<?>> getCyclesAsync(String experimentId, String yFactor){
         return CompletableFuture.supplyAsync(() -> {
                     List<CycleData> cycleDataList = cycleDataRepository.findAllByExperimentId(experimentId);
+                    System.out.println("getCyclesAsync: " + experimentId);
                     return cycleDataList.stream()
                             .flatMap(cycleData -> cycleData.getExpSpec().stream())
                             .map(expSpec -> {
+                                System.out.println("ExpSpec Map: " + expSpec);
                                 String cycleIndex = expSpec.get("Cycle Index") != null ? expSpec.get("Cycle Index").toString() : null;
                                 String whichCap = yFactor.equals("dchgToChg") && expSpec.get("DChg_ Spec_ Cap_(mAh/g)") != null
                                         ? expSpec.get("DChg_ Spec_ Cap_(mAh/g)").toString()
@@ -302,9 +304,9 @@ public class ExperimentService {
 
     // 2. getTimeListByFixedFactor 메서드
     @Async
-    public CompletableFuture<ApiResponse<?>> getTimeListByFixedFactor(String factorKind, String fixedFactor, String yFactor) {
+    public CompletableFuture<ApiResponse<?>> getTimeListByFixedFactor(List<Map<String, String>> factorKind, List<Map<String, String>> fixedFactor, String yFactor) {
         ApiResponse<?> response;
-        List<Factor> factors = factorCustomRepository.findByFactorKeyExists(factorKind, fixedFactor);
+        List<Factor> factors = factorCustomRepository.findByMultipleKindsAndCriteria(factorKind, fixedFactor);
         List<String> experimentIds = factors.stream()
                 .map(Factor::getExperimentId)
                 .toList();
@@ -352,9 +354,9 @@ public class ExperimentService {
         return CompletableFuture.completedFuture(response);
     }
     @Async
-    public CompletableFuture<ApiResponse<?>> getVoltageListByFixedFactor(String factorKind, String fixedFactor) {
+    public CompletableFuture<ApiResponse<?>> getVoltageListByFixedFactor(List<Map<String, String>> factorKind, List<Map<String, String>> fixedFactor) {
         ApiResponse<?> response;
-        List<Factor> factors = factorCustomRepository.findByFactorKeyExists(factorKind, fixedFactor);
+        List<Factor> factors = factorCustomRepository.findByMultipleKindsAndCriteria(factorKind, fixedFactor);
         List<String> experimentIds = factors.stream()
                 .map(Factor::getExperimentId)
                 .toList();
@@ -388,9 +390,10 @@ public class ExperimentService {
     }
 
     @Async
-    public CompletableFuture<ApiResponse<?>> getCycleListByFixedFactor(String factorKind, String fixedFactor, String yFactor){
+    public CompletableFuture<ApiResponse<?>> getCycleListByFixedFactor(List<Map<String, String>> factorKind, List<Map<String, String>> fixedFactor, String yFactor) {
         ApiResponse<?> response;
-        List<Factor> factors = factorCustomRepository.findByFactorKeyExists(factorKind, fixedFactor);
+        List<Factor> factors = factorCustomRepository.findByMultipleKindsAndCriteria(factorKind, fixedFactor);
+
         List<String> experimentIds = factors.stream()
                 .map(Factor::getExperimentId)
                 .toList();
@@ -400,19 +403,28 @@ public class ExperimentService {
                 .toList();
 
         CompletableFuture.allOf(futureCycleDtos.toArray(new CompletableFuture[0])).join();
-        Map<String, List<?>> cycleDtoMap = new HashMap<>();
+        Map<String, List<Object>> cycleDtoMap = new HashMap<>();
         for (int i = 0; i < experimentIds.size(); i++) {
             try {
-                cycleDtoMap.put(experimentIds.get(i), futureCycleDtos.get(i).get());
+                String experimentId = experimentIds.get(i);
+                List<?> cycleData = futureCycleDtos.get(i).get();
+
+                // Map에 리스트가 없다면 초기화
+                cycleDtoMap.putIfAbsent(experimentId, new ArrayList<>());
+
+                // 리스트에 데이터를 추가 (타입을 명확히 하기 위해 캐스팅)
+                cycleDtoMap.get(experimentId).addAll((List<Object>) cycleData);
             } catch (Exception ignored) {
                 // 예외 처리
             }
         }
+
         if (yFactor.equals("dchgToChg")) {
+            System.out.println("Processing yFactor: dchgToChg");
             List<ResponseDto.CycleDchgToChg> cycleDchgToChgList = factors.stream()
                     .map(meta -> new ResponseDto.CycleDchgToChg(
                             meta,
-                            Collections.singletonMap("time: " + meta.getExperimentId(),
+                            Map.of("cycle: " + meta.getExperimentId(),
                                     (List<CycleDto.dchgToChg>) (List<?>) cycleDtoMap.getOrDefault(meta.getExperimentId(), new ArrayList<>()))
                     ))
                     .toList();
@@ -421,7 +433,7 @@ public class ExperimentService {
             List<ResponseDto.CycleChgToDchg> cycleChgToDchgList = factors.stream()
                     .map(meta -> new ResponseDto.CycleChgToDchg(
                             meta,
-                            Collections.singletonMap("time: " + meta.getExperimentId(),
+                            Map.of("cycle: " + meta.getExperimentId(),
                                     (List<CycleDto.chgToDchg>) (List<?>) cycleDtoMap.getOrDefault(meta.getExperimentId(), new ArrayList<>()))
                     ))
                     .toList();
@@ -429,32 +441,53 @@ public class ExperimentService {
         } else {
             throw new IllegalArgumentException("Unsupported yFactor type");
         }
+
         return CompletableFuture.completedFuture(response);
     }
 
-//    public ApiResponse<?> fetchExperiementWithOutliers(String title) {
-//        // ExperimentMeta 및 CycleData 조회
-//        Factor factor = factorRepository.findFirstByTitle(title);
-//        if (factor == null) {
-//            return ApiResponse.fromResultStatus(ApiStatus.NOT_FOUND); // 적절한 상태 반환
-//        }
-//
-//        String experimentId = factor.getExperimentId();
-//
-//        // 비동기적으로 getOutliersAsync 호출
-//        CompletableFuture<List<?>> futureOutliers = getOutliersAsync(experimentId);
-//
-//        try {
-//            // 비동기 결과 기다리기
-//            List<CycleDto.withOutlier> outliers = (List<CycleDto.withOutlier>) futureOutliers.get();
-//
-//            // 성공 응답에 이상치 리스트 포함하여 반환
-//            return ApiResponse.fromResultStatus(ApiStatus.SUC_FACTOR_CREATE, outliers);
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//            return ApiResponse.fromResultStatus(ApiStatus.INTERNAL_SERVER_ERROR); // 예외 발생 시 에러 상태 반환
-//        }
-//    }
+
+    public CompletableFuture<ApiResponse<?>> fetchExperiementWithOutliers(List<Map<String, String>> factorKind, List<Map<String, String>> fixedFactor) {
+        ApiResponse<?> response;
+        List<Factor> factors = factorCustomRepository.findByMultipleKindsAndCriteria(factorKind, fixedFactor);
+
+        List<String> experimentIds = factors.stream()
+                .map(Factor::getExperimentId)
+                .toList();
+
+        List<CompletableFuture<List<?>>> futureOutlierDtos = experimentIds.stream()
+                .map(id -> getOutliersAsync(id))
+                .toList();
+
+        CompletableFuture.allOf(futureOutlierDtos.toArray(new CompletableFuture[0])).join();
+        Map<String, List<Object>> outlierDtoMap = new HashMap<>();
+        for (int i = 0; i < experimentIds.size(); i++) {
+            try {
+                String experimentId = experimentIds.get(i);
+                List<?> outlierData = futureOutlierDtos.get(i).get();
+
+                // Map에 리스트가 없다면 초기화
+                outlierDtoMap.putIfAbsent(experimentId, new ArrayList<>());
+
+                // 리스트에 데이터를 추가 (타입을 명확히 하기 위해 캐스팅)
+                outlierDtoMap.get(experimentId).addAll((List<Object>) outlierData);
+            } catch (Exception ignored) {
+                // 예외 처리
+            }
+        }
+
+
+        List<ResponseDto.CycleOutlying> cycleOutlierList = factors.stream()
+                .map(meta -> new ResponseDto.CycleOutlying(
+                        meta,
+                        Map.of("cycle: " + meta.getExperimentId(),
+                                (List<CycleDto.withOutlier>) (List<?>) outlierDtoMap.getOrDefault(meta.getExperimentId(), new ArrayList<>()))
+                ))
+                .toList();
+        response = ApiResponse.fromResultStatus(ApiStatus.SUC_EXPERIMENT_READ, cycleOutlierList);
+
+
+        return CompletableFuture.completedFuture(response);
+    }
 //    public ApiResponse<Void> deleteExperimentData(String title){
 //        factorRepository.findAllByTitle(title).forEach(e -> {
 //                    timeDataRepository.deleteByExperimentId(e.getExperimentId());
