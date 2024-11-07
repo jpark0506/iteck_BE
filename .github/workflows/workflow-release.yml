@@ -74,6 +74,7 @@ jobs:
               
               sudo docker run -d \
                 --name ${IMAGE_NAME} \
+                --network compose_default \
                 -e MONGO_PASSWORD=${MONGO_PASSWORD} \
                 -p 8080:8080 \
                 gcr.io/${GCP_PROJECT_ID}/${IMAGE_NAME}:${IMAGE_TAG}
