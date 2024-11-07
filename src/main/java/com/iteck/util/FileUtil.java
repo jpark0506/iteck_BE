@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class FileUtil {
 
@@ -14,6 +15,19 @@ public class FileUtil {
             return true;
         }
         return false;
+    }
+
+    public static List<Map<String, String>> parseParameterList(List<String> paramList) {
+        return paramList.stream()
+                .map(entry -> {
+                    String[] splitEntry = entry.split(":");
+                    if (splitEntry.length == 2) {
+                        return Map.of(splitEntry[0], splitEntry[1]);
+                    } else {
+                        throw new IllegalArgumentException("Invalid parameter format. Expected 'key:value' format.");
+                    }
+                })
+                .collect(Collectors.toList());
     }
 
     public static Map<String, Object> createRowMap(String[] headers, String[] data, int startIdx, int endIdx) {
