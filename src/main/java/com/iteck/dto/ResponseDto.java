@@ -41,6 +41,13 @@ public class ResponseDto {
     @Getter
     @Builder
     @AllArgsConstructor
+    public static class CycleOutlying{
+        private Factor meta;
+        private Map<String, List<CycleDto.withOutlier>> cycleDatas;
+    }
+    @Getter
+    @Builder
+    @AllArgsConstructor
     public static class VoltageWithDQmDv{
         private Factor meta;
         private Map<String, List<VoltageDto.withDQDV>> voltageDatas;
