@@ -101,11 +101,14 @@ public class ExperimentController {
     }
 
     @GetMapping("/import/time")
-    @Operation(summary = "시간-전류, 시간-전압 그래프 플롯에 필요한 데이터 반환", description = "kind(활물질, 전도체 등), fixed(고정인자 이름, CMC), yFactor(전류 or 전압)을 클라이언트에서 받아 충족하는 데이터 반환.")
+    @Operation(summary = "시간-전류, 시간-전압 그래프 플롯에 필요한 데이터 반환", description =
+            "kind(활물질, 전도체 등), fixed(고정인자 이름, CMC), yFactor(전류 or 전압)을 클라이언트에서 받아 충족하는 데이터 반환."
+            + "예시: http://34.64.87.212:8080/exp/import/time?yFactor=current&factorKind=활물질:TEST&factorAmount=활물질:134&variable=factorKind:바인더:desc")
     public CompletableFuture<ApiResponse<?>> getExperimentComparisonsByTime(
             @RequestParam(value = "yFactor") String yFactor,
             @RequestParam(value = "factorKind", required = false) List<String> factorKind,
-            @RequestParam(value = "factorAmount", required = false) List<String> factorAmount
+            @RequestParam(value = "factorAmount", required = false) List<String> factorAmount,
+            @RequestParam(value = "variable", required = false) String variable
             ){
         // null 체크 후 빈 리스트로 초기화
         factorKind = (factorKind == null) ? Collections.emptyList() : factorKind;
@@ -113,15 +116,18 @@ public class ExperimentController {
 
         List<Map<String, String>> parsedKinds = parseParameterList(factorKind);
         List<Map<String, String>> parsedAmounts = parseParameterList(factorAmount);
-        return experimentService.getTimeListByFixedFactor(parsedKinds, parsedAmounts, yFactor);
+        return experimentService.getTimeListByFixedFactor(parsedKinds, parsedAmounts, yFactor, variable);
     }
 
     @GetMapping("/import/cycle")
-    @Operation(summary = "사이클-쿨링효율, 사이클-용량 그래프 플롯에 필요한 데이터 반환", description = "여러 종류의 물질(kind)과 그에 대응하는 함량(amount)을 받아 데이터를 반환.")
+    @Operation(summary = "사이클-쿨링효율, 사이클-용량 그래프 플롯에 필요한 데이터 반환", description =
+            "여러 종류의 물질(kind)과 그에 대응하는 함량(amount)을 받아 데이터를 반환."
+        +  "예시: http://34.64.87.212:8080/exp/import/cycle?yFactor=chgToDchg&factorKind=활물질:TEST&factorAmount=활물질:134&factorKind=바인더:BIND&variable=factorKind:바인더:desc")
     public CompletableFuture<ApiResponse<?>> getExperimentComparisonsByCycle(
             @RequestParam(value = "yFactor") String yFactor,
             @RequestParam(value = "factorKind", required = false) List<String> factorKind,
-            @RequestParam(value = "factorAmount", required = false) List<String> factorAmount
+            @RequestParam(value = "factorAmount", required = false) List<String> factorAmount,
+            @RequestParam(value = "variable", required = false) String variable
     ) {
         // null 체크 후 빈 리스트로 초기화
         factorKind = (factorKind == null) ? Collections.emptyList() : factorKind;
@@ -130,33 +136,38 @@ public class ExperimentController {
         List<Map<String, String>> parsedKinds = parseParameterList(factorKind);
         List<Map<String, String>> parsedAmounts = parseParameterList(factorAmount);
 
-        return experimentService.getCycleListByFixedFactor(parsedKinds, parsedAmounts, yFactor);
+        return experimentService.getCycleListByFixedFactor(parsedKinds, parsedAmounts, yFactor, variable);
     }
     @GetMapping("/import/voltage")
-    @Operation(summary = "전압-dQ/dV 그래프 플롯에 필요한 데이터 반환", description = "고정인자를 1개 이상 입력 받고 그 값들을 갖는 데이터를 불러와  반환.")
+    @Operation(summary = "전압-dQ/dV 그래프 플롯에 필요한 데이터 반환",
+            description = "고정인자를 1개 이상 입력 받고 그 값들을 갖는 데이터를 불러와  반환." +
+                    "예시: http://34.64.87.212:8080/exp/import/cycle?yFactor=dchgToChg&factorKind=활물질:TEST&variable=factorKind:바인더:desc")
     public CompletableFuture<ApiResponse<?>> getExperimentComparisonsByVoltage(
             @RequestParam(value = "factorKind", required = false) List<String> factorKind,
-            @RequestParam(value = "factorAmount", required = false) List<String> factorAmount) {
+            @RequestParam(value = "factorAmount", required = false) List<String> factorAmount,
+            @RequestParam(value = "variable", required = false) String variable) {
         factorKind = (factorKind == null) ? Collections.emptyList() : factorKind;
         factorAmount = (factorAmount == null) ? Collections.emptyList() : factorAmount;
 
         List<Map<String, String>> parsedKinds = parseParameterList(factorKind);
         List<Map<String, String>> parsedAmounts = parseParameterList(factorAmount);
-       return experimentService.getVoltageListByFixedFactor(parsedKinds, parsedAmounts);
+       return experimentService.getVoltageListByFixedFactor(parsedKinds, parsedAmounts, variable);
    }
 
 
    @GetMapping("/detect")
-   @Operation(summary = "이상치 탐지하여 실험데이터와 같이 반환", description = "고정인자를 1개 이상 입력 받고 그 값들을 갖는 데이터를 불러와 이상치를 탐지하고 반환.")
+   @Operation(summary = "이상치 탐지하여 실험데이터와 같이 반환", description = "고정인자를 1개 이상 입력 받고 그 값들을 갖는 데이터를 불러와 이상치를 탐지하고 반환." +
+           "예시: http://34.64.87.212:8080//exp/detect?factorKind=활물질:TEST&factorAmount=활물질:134&variable=factorKind:바인더:desc")
    public CompletableFuture<ApiResponse<?>> getOutliers(
            @RequestParam(value = "factorKind", required = false) List<String> factorKind,
-           @RequestParam(value = "factorAmount", required = false) List<String> factorAmount) {
+           @RequestParam(value = "factorAmount", required = false) List<String> factorAmount,
+           @RequestParam(value = "variable", required = false) String variable) {
 
        factorKind = (factorKind == null) ? Collections.emptyList() : factorKind;
        factorAmount = (factorAmount == null) ? Collections.emptyList() : factorAmount;
 
        List<Map<String, String>> parsedKinds = parseParameterList(factorKind);
        List<Map<String, String>> parsedAmounts = parseParameterList(factorAmount);
-       return experimentService.fetchExperiementWithOutliers(parsedKinds, parsedAmounts);
+       return experimentService.fetchExperiementWithOutliers(parsedKinds, parsedAmounts, variable);
     }
 }
