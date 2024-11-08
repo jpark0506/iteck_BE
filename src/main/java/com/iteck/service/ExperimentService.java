@@ -303,9 +303,10 @@ public class ExperimentService {
 
     // 2. getTimeListByFixedFactor 메서드
     @Async
-    public CompletableFuture<ApiResponse<?>> getTimeListByFixedFactor(List<Map<String, String>> factorKind, List<Map<String, String>> fixedFactor, String yFactor, String variable) {
+    public CompletableFuture<ApiResponse<?>> getTimeListByFixedFactor(String userName, List<Map<String, String>> factorKind, List<Map<String, String>> fixedFactor, String yFactor, String variable) {
         ApiResponse<?> response;
-        List<Factor> factors = factorCustomRepository.findByMultipleKindsAndCriteria(factorKind, fixedFactor, variable);
+
+        List<Factor> factors = factorCustomRepository.findByMultipleKindsAndCriteria(userName, factorKind, fixedFactor, variable);
 
         List<String> experimentIds = factors.stream()
                 .map(Factor::getExperimentId)
@@ -354,9 +355,10 @@ public class ExperimentService {
         return CompletableFuture.completedFuture(response);
     }
     @Async
-    public CompletableFuture<ApiResponse<?>> getVoltageListByFixedFactor(List<Map<String, String>> factorKind, List<Map<String, String>> fixedFactor, String variable) {
+    public CompletableFuture<ApiResponse<?>> getVoltageListByFixedFactor(String userName, List<Map<String, String>> factorKind, List<Map<String, String>> fixedFactor, String variable) {
         ApiResponse<?> response;
-        List<Factor> factors = factorCustomRepository.findByMultipleKindsAndCriteria(factorKind, fixedFactor, variable);
+
+        List<Factor> factors = factorCustomRepository.findByMultipleKindsAndCriteria(userName, factorKind, fixedFactor, variable);
 
         List<String> experimentIds = factors.stream()
                 .map(Factor::getExperimentId)
@@ -391,9 +393,9 @@ public class ExperimentService {
     }
 
     @Async
-    public CompletableFuture<ApiResponse<?>> getCycleListByFixedFactor(List<Map<String, String>> factorKind, List<Map<String, String>> fixedFactor, String yFactor, String variable) {
+    public CompletableFuture<ApiResponse<?>> getCycleListByFixedFactor(String userName, List<Map<String, String>> factorKind, List<Map<String, String>> fixedFactor, String yFactor, String variable) {
         ApiResponse<?> response;
-        List<Factor> factors = factorCustomRepository.findByMultipleKindsAndCriteria(factorKind, fixedFactor, variable);
+        List<Factor> factors = factorCustomRepository.findByMultipleKindsAndCriteria(userName, factorKind, fixedFactor, variable);
 
 
         List<String> experimentIds = factors.stream()
@@ -449,9 +451,10 @@ public class ExperimentService {
 
 
 
-    public CompletableFuture<ApiResponse<?>> fetchExperiementWithOutliers(List<Map<String, String>> factorKind, List<Map<String, String>> fixedFactor, String variable) {
+    public CompletableFuture<ApiResponse<?>> fetchExperiementWithOutliers(String userName, List<Map<String, String>> factorKind, List<Map<String, String>> fixedFactor, String variable) {
+
         ApiResponse<?> response;
-        List<Factor> factors = factorCustomRepository.findByMultipleKindsAndCriteria(factorKind, fixedFactor, variable);
+        List<Factor> factors = factorCustomRepository.findByMultipleKindsAndCriteria(userName, factorKind, fixedFactor, variable);
 
 
         List<String> experimentIds = factors.stream()

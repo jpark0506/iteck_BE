@@ -28,14 +28,14 @@ public class FactorCustomRepository {
     }
 
 
-    public List<Factor> findByMultipleKindsAndCriteria(List<Map<String, String>> kindKeyMap, List<Map<String, String>> kindValueMap, String variable) {
+    public List<Factor> findByMultipleKindsAndCriteria(String userName, List<Map<String, String>> kindKeyMap, List<Map<String, String>> kindValueMap, String variable) {
         if ((kindKeyMap == null || kindKeyMap.isEmpty()) && (kindValueMap == null || kindValueMap.isEmpty())) {
             System.out.println("Both kindKeyMap and kindValueMap are empty or null. Returning empty result.");
             return Collections.emptyList(); // 빈 리스트 반환
         }
 
         List<Criteria> kindCriteriaList = new ArrayList<>();
-
+        Criteria userCriteria = Criteria.where("userName").is(userName);
         // keyMap 반복문을 먼저 처리하여 모든 키 조건을 추가
         if (kindKeyMap != null && !kindKeyMap.isEmpty()) {
             for (Map<String, String> keyMap : kindKeyMap) {
@@ -88,7 +88,7 @@ public class FactorCustomRepository {
             return Collections.emptyList();
         }
 
-        // 전체 조건을 AND로 결합
+        kindCriteriaList.add(0, userCriteria); // userName 조건을 최우선으로 추가
         Criteria combinedCriteria = new Criteria().andOperator(kindCriteriaList.toArray(new Criteria[0]));
         Query query = new Query(combinedCriteria);
 
