@@ -105,7 +105,7 @@ public class ExperimentController {
             "kind(활물질, 전도체 등), fixed(고정인자 이름, CMC), yFactor(전류 or 전압)을 클라이언트에서 받아 충족하는 데이터 반환."
             + "예시: http://34.64.87.212:8080/exp/import/time?yFactor=current&factorKind=활물질:TEST&factorAmount=활물질:134&variable=factorKind:바인더:desc")
     public CompletableFuture<ApiResponse<?>> getExperimentComparisonsByTime(
-            @RequestParam(value = "userName") String userName,
+            //@RequestParam(value = "userName") String userName,
             @RequestParam(value = "yFactor") String yFactor,
             @RequestParam(value = "factorKind", required = false) List<String> factorKind,
             @RequestParam(value = "factorAmount", required = false) List<String> factorAmount,
@@ -119,7 +119,7 @@ public class ExperimentController {
         List<Map<String, String>> parsedKinds = parseParameterList(factorKind);
         List<Map<String, String>> parsedAmounts = parseParameterList(factorAmount);
 
-        return experimentService.getTimeListByFixedFactor(userName, parsedKinds, parsedAmounts, yFactor, variable);
+        return experimentService.getTimeListByFixedFactor(parsedKinds, parsedAmounts, yFactor, variable);
     }
 
 
@@ -128,7 +128,7 @@ public class ExperimentController {
             "여러 종류의 물질(kind)과 그에 대응하는 함량(amount)을 받아 데이터를 반환."
         +  "예시: http://34.64.87.212:8080/exp/import/cycle?yFactor=chgToDchg&factorKind=활물질:TEST&factorAmount=활물질:134&factorKind=바인더:BIND&variable=factorKind:바인더:desc")
     public CompletableFuture<ApiResponse<?>> getExperimentComparisonsByCycle(
-            @RequestParam(value = "userName") String userName,
+            //@RequestParam(value = "userName") String userName,
             @RequestParam(value = "yFactor") String yFactor,
             @RequestParam(value = "factorKind", required = false) List<String> factorKind,
             @RequestParam(value = "factorAmount", required = false) List<String> factorAmount,
@@ -142,7 +142,7 @@ public class ExperimentController {
         List<Map<String, String>> parsedKinds = parseParameterList(factorKind);
         List<Map<String, String>> parsedAmounts = parseParameterList(factorAmount);
 
-        return experimentService.getCycleListByFixedFactor(userName, parsedKinds, parsedAmounts, yFactor, variable);
+        return experimentService.getCycleListByFixedFactor(parsedKinds, parsedAmounts, yFactor, variable);
     }
 
     @GetMapping("/import/voltage")
@@ -150,7 +150,7 @@ public class ExperimentController {
             description = "고정인자를 1개 이상 입력 받고 그 값들을 갖는 데이터를 불러와  반환." +
                     "예시: http://34.64.87.212:8080/exp/import/cycle?yFactor=dchgToChg&factorKind=활물질:TEST&variable=factorKind:바인더:desc")
     public CompletableFuture<ApiResponse<?>> getExperimentComparisonsByVoltage(
-            @RequestParam(value = "userName") String userName,
+            //@RequestParam(value = "userName") String userName,
             @RequestParam(value = "factorKind", required = false) List<String> factorKind,
             @RequestParam(value = "factorAmount", required = false) List<String> factorAmount,
             @RequestParam(value = "variable", required = false) String variable) {
@@ -161,7 +161,7 @@ public class ExperimentController {
         List<Map<String, String>> parsedKinds = parseParameterList(factorKind);
         List<Map<String, String>> parsedAmounts = parseParameterList(factorAmount);
 
-       return experimentService.getVoltageListByFixedFactor(userName, parsedKinds, parsedAmounts, variable);
+       return experimentService.getVoltageListByFixedFactor(parsedKinds, parsedAmounts, variable);
    }
 
 
@@ -169,7 +169,7 @@ public class ExperimentController {
    @Operation(summary = "이상치 탐지하여 실험데이터와 같이 반환", description = "고정인자를 1개 이상 입력 받고 그 값들을 갖는 데이터를 불러와 이상치를 탐지하고 반환." +
            "예시: http://34.64.87.212:8080/exp/detect?factorKind=활물질:TEST&factorAmount=활물질:134&variable=factorKind:바인더:desc")
    public CompletableFuture<ApiResponse<?>> getOutliers(
-           @RequestParam(value = "userName") String userName,
+           //@RequestParam(value = "userName") String userName,
            @RequestParam(value = "factorKind", required = false) List<String> factorKind,
            @RequestParam(value = "factorAmount", required = false) List<String> factorAmount,
            @RequestParam(value = "variable", required = false) String variable) {
@@ -180,6 +180,6 @@ public class ExperimentController {
 
        List<Map<String, String>> parsedKinds = parseParameterList(factorKind);
        List<Map<String, String>> parsedAmounts = parseParameterList(factorAmount);
-       return experimentService.fetchExperiementWithOutliers(userName, parsedKinds, parsedAmounts, variable);
+       return experimentService.fetchExperiementWithOutliers(parsedKinds, parsedAmounts, variable);
     }
 }
