@@ -35,17 +35,18 @@ public class ExperimentService {
 
     public ApiResponse<?> createExperimentData(MultipartFile file, FactorsDto factorsDto) throws IOException {
         String experimentId = UUID.randomUUID().toString();
-
         // CSV 파일 여부 확인
         if (isExcel(file)) {
             return ApiResponse.fromResultStatus(ApiStatus.BAD_REQUEST);
         }
 
+        String fileName = file.getOriginalFilename();
         // ExperimentMeta 생성 후 저장
         Factor factor = Factor.builder()
                 .experimentId(experimentId)
                 .userName(factorsDto.getUserName())
                 .factors(factorsDto.getFactors())
+                .fileName(fileName)
                 .build();
         factorRepository.save(factor);
 
@@ -106,10 +107,10 @@ public class ExperimentService {
         }
 
         if (!timeExpSpecBuffer.isEmpty()) {
-            saveTimeDataChunkAsync(experimentId, timeDataChunkId, timeExpSpecBuffer);
+            saveTimeDataChunkAsync(experimentId,timeDataChunkId, timeExpSpecBuffer);
         }
         if (!cycleExpSpecBuffer.isEmpty()) {
-            saveCycleDataChunkAsync(experimentId, cycleDataChunkId, cycleExpSpecBuffer);
+            saveCycleDataChunkAsync(experimentId,cycleDataChunkId, cycleExpSpecBuffer);
         }
 
         return ApiResponse.fromResultStatus(ApiStatus.SUC_EXPERIMENT_CREATE);
@@ -128,8 +129,6 @@ public class ExperimentService {
 
     @Async
     private void saveCycleDataChunkAsync(String experimentId, int chunkId, List<Map<String, Object>> expSpec) {
-        // expSpec 내용 출력
-        System.out.println("CycleData expSpec 내용: " + expSpec);
 
         CycleData cycleData = CycleData.builder()
                 .experimentId(experimentId)
