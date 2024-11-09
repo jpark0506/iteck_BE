@@ -17,7 +17,7 @@ public class TimeData {
     @Id
     private String id;
     @Indexed
-    private String experimentId; // 실험 ID
+    private String experimentId;
     private Integer cycleIndex;
     private int chunkId; // 청크 ID (1, 2, 3, ...)
     private List<Map<String, Object>> expSpec;

@@ -16,5 +16,6 @@ public class Factor {
     private String id;
     private String userName;
     private String experimentId;
+    private String fileName;
     private Map<String, FactorDetail> factors;
 }
