@@ -214,7 +214,7 @@ public class ExperimentService {
                     .flatMap(timeData -> timeData.getExpSpec().stream())
                     .map(expSpec -> {
                         String voltage = expSpec.get("Voltage(V)") != null ? expSpec.get("Voltage(V)").toString() : null;
-                        String dQmdV = expSpec.get("dQm/dV(mAh/V_g)") != null ? expSpec.get("Current(mA)").toString() : null;
+                        String dQmdV = expSpec.get("dQm/dV(mAh/V_g)") != null ? expSpec.get("dQm/dV(mAh/V_g)").toString() : null;
                         // yFactor에 따라 명확한 타입 반환
                         return VoltageDto.createVoltageDto(voltage, dQmdV);
                     })
